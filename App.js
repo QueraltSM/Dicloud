@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, ActivityIndicator, Linking } from 'react-native';
+import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createAppContainer } from 'react-navigation';
 import { createStackNavigator } from 'react-navigation-stack';
@@ -49,16 +49,16 @@ class HomeScreen extends Component {
 
   async getNews() {
     await this.getUser()
-    console.log("getNews")
+    //console.log("getNews")
     //var companies = [Company]
     let datos = {"appSource": "Dicloud", "aliasDb": this.alias, "user":this.user, "password": this.password, "token": this.token}
-    console.log('https://app.dicloud.es/getPendingNews.asp?appSource=Dicloud&aliasDb='+this.alias+"&user="+this.user+"&password="+this.password+"&token="+this.token)
+    //console.log('https://app.dicloud.es/getPendingNews.asp?appSource=Dicloud&aliasDb='+this.alias+"&user="+this.user+"&password="+this.password+"&token="+this.token)
     await fetch('https://app.dicloud.es/getPendingNews.asp?appSource=Dicloud&aliasDb='+this.alias+"&user="+this.user+"&password="+this.password+"&token="+this.token, {})
     .then((response) => response.json())
     .then((responseJson) => {
-      console.log(response)
+      //console.log(response)
       responseJson.news.forEach(n => {
-        console.log(n)
+        //console.log(n)
         /*var c =  {
           id: company.id,
           description: company.description,
@@ -83,11 +83,15 @@ class HomeScreen extends Component {
   }
 
   goIndex = () => {
-    this.setState({ url: this.props.navigation.state.params.url })
+    this.setState({ url: "https://desarrollo.dicloud.es/index.asp" })
   }
 
   goListin = () => {
-    this.setState({ url: "https://admin.dicloud.es/listin.asp" })
+    this.setState({ url: "https://desarrollo.dicloud.es/companies/listin.asp" })
+  }
+
+  reload = () => {
+    this.webView.ref.reload();
   }
 
   saveLogout =  async (state) => {
@@ -136,34 +140,6 @@ class HomeScreen extends Component {
   render(){
     return(
       <View style={{flex: 1}}>
-      <View style={styles.navBar}>
-          <Ionicons 
-            name="grid-outline"
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
-          <Ionicons 
-            name=""
-            size={25} 
-            style={styles.navBarButton}
-          />
-          <Text style={styles.navBarHeader}>Dicloud</Text>
-          <Ionicons 
-            name="home" 
-            onPress={this.goIndex}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
-          <Ionicons 
-            name="call" 
-            onPress={this.goListin}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
-        </View>
         <WebView
           ref={(webView) => { this.webView.ref = webView; }}
           originWhitelist={['*']}
@@ -191,7 +167,7 @@ class HomeScreen extends Component {
             }
           }}
           onShouldStartLoadWithRequest={(event) => {
-            if (event.url.indexOf("hibernar.asp") > -1) {
+            if (event.url.indexOf("agententer.asp") > -1) {
               this.logout()
               return false
             } else if (event.url.includes("drive") || event.url.includes("tel:") || event.url.includes("mailto:") || event.url.includes("maps") || event.url.includes("facebook")) {
@@ -207,6 +183,35 @@ class HomeScreen extends Component {
             }
           }}
         />
+        <View style={styles.navBar}>
+          <Ionicons 
+            name="menu"
+            size={30} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="home" 
+            onPress={this.goIndex}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="reload" 
+            onPress={this.reload}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="call" 
+            onPress={this.goListin}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+        </View>
     </View>
     )
   }
@@ -293,7 +298,7 @@ class LoginScreen extends Component {
     await AsyncStorage.setItem('fullname', fullname);
     await AsyncStorage.setItem('idempresa', idempresa + "");
     await AsyncStorage.setItem('token', token);
-    var url = "https://admin.dicloud.es/?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
+    var url = "https://desarrollo.dicloud.es/?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
     this.props.navigation.navigate('Home',{url:url})
   }
 
@@ -394,12 +399,15 @@ class MainScreen extends Component {
     });
     await new Promise(resolve => setTimeout(resolve, 2000));
     if (lastUser == "true") {
-      var url = "https://admin.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
+      var url = "https://desarrollo.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
       this.props.navigation.navigate('Home',{url:url})
     } else {
       this.props.navigation.navigate('Login')
     }
   };
+
+  // aspa siempre en ficha
+  // sesion storage con select
 
   render(){
     return (
