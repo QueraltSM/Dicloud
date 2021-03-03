@@ -1,0 +1,12 @@
+{
+  "name": "Dicloud",
+  "displayName": "Dicloud",
+  "expo": {
+    "name": "Dicloud",
+    "slug": "Dicloud",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
