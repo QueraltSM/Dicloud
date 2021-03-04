@@ -1,11 +1,12 @@
 import React, { Component } from 'react';
-import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, Linking } from 'react-native';
+import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createAppContainer } from 'react-navigation';
 import { createStackNavigator } from 'react-navigation-stack';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-community/async-storage';
 import { BackHandler } from 'react-native';
+import axios from 'axios';
 
 class HomeScreen extends Component { 
 
@@ -29,6 +30,7 @@ class HomeScreen extends Component {
       url: this.props.navigation.state.params.url
     }
     this.setWebview()
+    this.getMenu()
     this.getNews()
   } 
 
@@ -47,28 +49,36 @@ class HomeScreen extends Component {
     })
   }
 
-  async getNews() {
+  async getMenu() {
+    var menus = [Menu]
     await this.getUser()
-    //console.log("getNews")
-    //var companies = [Company]
-    let datos = {"appSource": "Dicloud", "aliasDb": this.alias, "user":this.user, "password": this.password, "token": this.token}
-    //console.log('https://app.dicloud.es/getPendingNews.asp?appSource=Dicloud&aliasDb='+this.alias+"&user="+this.user+"&password="+this.password+"&token="+this.token)
-    await fetch('https://app.dicloud.es/getPendingNews.asp?appSource=Dicloud&aliasDb='+this.alias+"&user="+this.user+"&password="+this.password+"&token="+this.token, {})
-    .then((response) => response.json())
-    .then((responseJson) => {
-      //console.log(response)
-      responseJson.news.forEach(n => {
-        //console.log(n)
-        /*var c =  {
-          id: company.id,
-          description: company.description,
-          coords: company.coordenadasmap
-        }
-        companies.push(c);*/
-      });
-    }).catch(() => {});
+    const response =await axios.post("https://app.dicloud.es/getMenu.asp",{"appSource": "Dicloud", "aliasDb": this.alias, "user":this.user, "password": this.password, "token": this.token})
+    response.data.usermenu.forEach(mx => {
+      var m =  {
+        agent_id: mx.agent_id,
+        id: mx.id,
+        menu: mx.menu,
+        submenu: mx.submenu,
+        url: mx.url
+      }
+      menus.push(m);
+    });
   }
 
+  async getNews() {
+    await this.getUser()
+    var messages = [Messages]
+    const response =await axios.post("https://app.dicloud.es/getPendingNews.asp",{"appSource": "Dicloud", "aliasDb": this.alias, "user":this.user, "password": this.password, "token": this.token})
+    response.data.messages.forEach(nx => {
+      var n =  {
+        from_id: nx.from_id,
+        from: nx.from,
+        last_messages_timestamp: nx.last_messages_timestamp,
+        messages_count: nx.messages_count,
+      }
+      messages.push(n);
+    });
+  }
 
   setWebview =  async () => {
     BackHandler.addEventListener('hardwareBackPress', this.handleBackButton);
@@ -157,6 +167,10 @@ class HomeScreen extends Component {
           onError={err => {
             this.setState({ err_code: err.nativeEvent.code })
           }}
+          renderLoading={() => 
+            <View style={styles.loading}>
+            <ActivityIndicator color={'white'} size="large"/>
+          </View>}
           renderError={()=> {
             if (this.state.err_code == -2){
               return (
@@ -170,7 +184,7 @@ class HomeScreen extends Component {
             if (event.url.indexOf("agententer.asp") > -1) {
               this.logout()
               return false
-            } else if (event.url.includes("drive") || event.url.includes("tel:") || event.url.includes("mailto:") || event.url.includes("maps") || event.url.includes("facebook")) {
+            } else if (event.url.includes("drive:") || event.url.includes("tel:") || event.url.includes("mailto:") || event.url.includes("maps") || event.url.includes("facebook")) {
               Linking.canOpenURL(event.url).then((value) => {
                 if (value) {
                   Linking.openURL(event.url)
@@ -421,6 +435,25 @@ class MainScreen extends Component {
   }
 }
 
+export class Menu {
+  constructor(agent_id, id, menu, submenu, url) {
+    this.agent_id = agent_id;
+    this.id = id;
+    this.menu = menu;
+    this.submenu = submenu;
+    this.url = url;
+  }
+}
+
+export class Messages {
+  constructor(from_id, from, last_messages_timestamp, messages_count) {
+    this.from_id = from_id;
+    this.from = from;
+    this.last_messages_timestamp = last_messages_timestamp;
+    this.messages_count = messages_count;
+  }
+}
+
 const AppNavigator = createStackNavigator({
   Main: {
     screen: MainScreen,
@@ -518,6 +551,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     textAlign: 'center',
     fontSize: 20
+  },
+  loading: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: "#1A5276"
   },
   mainView: {
     backgroundColor:"#1A5276",
