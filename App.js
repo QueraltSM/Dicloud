@@ -2,11 +2,268 @@ import React, { Component } from 'react';
 import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, Linking, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createAppContainer } from 'react-navigation';
-import { createStackNavigator } from 'react-navigation-stack';
+import { createStackNavigator} from 'react-navigation-stack';
 import { WebView } from 'react-native-webview';
 import AsyncStorage from '@react-native-community/async-storage';
 import { BackHandler } from 'react-native';
 import axios from 'axios';
+import { FlatList } from 'react-native-gesture-handler';
+
+class ListinScreen extends Component {
+
+  WEBVIEW_REF = "listin"
+  webView = {
+    canGoBack: false,
+    ref: null,
+  }
+
+  constructor(props) {
+    super(props);
+    this.state = { url: "https://admin.dicloud.es/companies/listin.asp" }
+  }
+
+  goHome = () => {
+    this.props.navigation.navigate("Home")
+  }
+
+  render() {
+    return(
+      <View style={{flex: 1}}>
+        <WebView
+          ref={(webView) => { this.webView.ref = webView; }}
+          originWhitelist={['*']}
+          source={{ uri: this.state.url }}
+          startInLoadingState={true}
+          javaScriptEnabled={true}
+          domStorageEnabled={true}
+          setSupportMultipleWindows={false}
+          allowsBackForwardNavigationGestures
+          onNavigationStateChange={(navState) => {
+            this.setState({
+              canGoBack: navState.canGoBack
+            });
+          }}
+          onError={err => {
+            this.setState({ err_code: err.nativeEvent.code })
+          }}
+          renderLoading={() => 
+            <View style={styles.loading}>
+            <ActivityIndicator color={'white'} size="large"/>
+          </View>}
+          renderError={()=> {
+            if (this.state.err_code == -2){
+              return (
+                <View style={{ backgroundColor: "white", flex: 1, height:"100%", width: "100%", position:'absolute', justifyContent: "center", alignItems: "center" }}>
+                  <Text>No hay conexión a Internet</Text>
+                </View>
+              );
+            }
+          }}
+          onShouldStartLoadWithRequest={(event) => {
+            if (event.url.indexOf("agententer.asp") > -1) {
+              this.logout()
+              return false
+            } else if (event.url.includes("drive:") || event.url.includes("tel:") || event.url.includes("mailto:") || event.url.includes("maps") || event.url.includes("facebook")) {
+              Linking.canOpenURL(event.url).then((value) => {
+                if (value) {
+                  Linking.openURL(event.url)
+                }
+              })
+              return false
+            } else {
+              this.setState({ url: event.url })  
+              return true
+            }
+          }}
+        />
+        <View style={styles.navBar}>
+        <Ionicons 
+            name="log-out-outline" 
+            onPress={this.logout}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="reload" 
+            onPress={this.reload}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="home" 
+            onPress={this.goHome}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="call" 
+            onPress={this.goListin}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+            <Ionicons 
+            name="barcode" 
+            onPress={this.goBarcode}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+        </View>
+    </View>
+    )
+  }
+}
+
+
+class BarcodeScreen extends Component {
+  
+  aux_barcodes = []
+  
+  constructor(props) {
+    super(props);
+    this.state = { barcodes: [Barcode], code: "", quantity: "1" };
+  }
+
+  showAlert = (message) => {
+    Alert.alert(
+      "Error",
+      message,
+      [
+        {
+          text: "Ok",
+          style: "cancel"
+        },
+      ],
+      { cancelable: false }
+    );
+  }
+  
+  async componentDidMount() {
+    await AsyncStorage.getItem("barcodes").then((value) => {
+      var barcodes = JSON.parse(value)
+      if (barcodes == null) {
+        barcodes = []
+      }
+      this.setState({ barcodes: barcodes })
+      console.log("size:"+this.state.barcodes.length)
+    })
+  }
+
+  async setBarcode(b){
+    console.log("setNewBarcode="+b.code + " actual="+this.state.code)
+    if (b.code == this.state.code) {
+      var q = {
+        quantity: Number(b.quantity) + Number(this.state.quantity),
+        code: b.code
+      }
+      this.aux_barcodes.push(q);
+    } else {
+      var q = {
+        quantity: this.state.quantity,
+        code: this.state.code
+      }
+      this.aux_barcodes.push(q);
+    }
+  }
+
+  goHome = () => {
+    this.props.navigation.navigate("Home")
+  }
+
+  goListin = () => {
+    this.props.navigation.navigate("Listin")
+  }
+
+  saveCode = async () => {
+    this.aux_barcodes = []
+    var notified = false
+    var allCodes = this.state.barcodes
+    if (this.state.code == "") {
+      this.showAlert("El código no puede ser vacío")
+    } else {
+      allCodes.forEach(x => {
+        this.setBarcode(x)
+      })
+      if (allCodes.length == 0) {
+        var b = {
+          quantity: this.state.quantity,
+          code: this.state.code
+        }
+        this.setBarcode(b)
+      }
+    }
+    this.setState({ barcodes: this.aux_barcodes })
+    await new AsyncStorage.setItem("barcodes", JSON.stringify(this.aux_barcodes))
+  }
+
+  render(){
+    return(
+      <View style={{flex: 1}}>
+        <View style={styles.navBar}>
+          <Text style={styles.navBarHeader}>Lector de códigos</Text>
+        </View>
+        <View style={{flex: 1}}>
+        <TextInput placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center'}} onChangeText={(code) => this.setState({code})} />
+        <TextInput placeholder="Cantidad por defecto: 1" style ={{ alignSelf: 'center'}} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
+        <TouchableOpacity onPress={this.saveCode}>
+          <Text style={styles.appButtonTextSave}>Guardar y seguir</Text>
+        </TouchableOpacity> 
+        <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
+          <Text style={styles.appButtonText}>Escanear</Text>
+        </TouchableOpacity>  
+        <FlatList 
+        data={ this.state.barcodes } 
+        renderItem={({ item, index, separators }) => (
+          <TouchableOpacity
+            key={item}
+            onPress={() => this.loginUser(item)}>
+            <View> 
+              <Text style={styles.headerAccounts}>{item.code} ({item.quantity})</Text>
+            </View>
+          </TouchableOpacity>
+        )}
+        keyExtractor={(item) => item.user}
+        
+      />
+        </View>
+        <View style={styles.navBar}>
+        <Ionicons 
+            name="log-out-outline" 
+            onPress={this.logout}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="home" 
+            onPress={this.goHome}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="call" 
+            onPress={this.goListin}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+            <Ionicons 
+            name="barcode" 
+            onPress={this.goBarcode}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+        </View>
+        </View>
+    )
+  }
+}
 
 class HomeScreen extends Component { 
 
@@ -15,6 +272,7 @@ class HomeScreen extends Component {
   user = ""
   password = ""
   fullname = ""
+  barcode = false
   token = ""
   webView = {
     canGoBack: false,
@@ -30,7 +288,6 @@ class HomeScreen extends Component {
       url: this.props.navigation.state.params.url
     }
     this.setWebview()
-    this.getMenu()
     this.getNews()
   } 
 
@@ -47,22 +304,16 @@ class HomeScreen extends Component {
     await AsyncStorage.getItem("token").then((value) => {
       this.token = value;
     })
-  }
-
-  async getMenu() {
-    var menus = [Menu]
-    await this.getUser()
-    const response =await axios.post("https://app.dicloud.es/getMenu.asp",{"appSource": "Dicloud", "aliasDb": this.alias, "user":this.user, "password": this.password, "token": this.token})
-    response.data.usermenu.forEach(mx => {
-      var m =  {
-        agent_id: mx.agent_id,
-        id: mx.id,
-        menu: mx.menu,
-        submenu: mx.submenu,
-        url: mx.url
-      }
-      menus.push(m);
-    });
+    await AsyncStorage.getItem("token").then((value) => {
+      this.token = value;
+    })
+    await AsyncStorage.getItem("fullname").then((value) => {
+      this.fullname = value;
+    })
+    await AsyncStorage.getItem("barcode").then((value) => {
+      this.barcode = value;
+    })
+    console.log("barcode:"+this.barcode)
   }
 
   async getNews() {
@@ -93,15 +344,19 @@ class HomeScreen extends Component {
   }
 
   goIndex = () => {
-    this.setState({ url: "https://desarrollo.dicloud.es/index.asp" })
+    this.setState({ url: "https://admin.dicloud.es/index.asp" })
   }
 
   goListin = () => {
-    this.setState({ url: "https://desarrollo.dicloud.es/companies/listin.asp" })
+    this.props.navigation.navigate("Listin")
   }
 
   reload = () => {
     this.webView.ref.reload();
+  }
+
+  goBarcode = () => {
+    this.props.navigation.push('Barcode');
   }
 
   saveLogout =  async (state) => {
@@ -198,15 +453,9 @@ class HomeScreen extends Component {
           }}
         />
         <View style={styles.navBar}>
-          <Ionicons 
-            name="menu"
-            size={30} 
-            color="white"
-            style={styles.navBarButton}
-          />
-          <Ionicons 
-            name="home" 
-            onPress={this.goIndex}
+        <Ionicons 
+            name="log-out-outline" 
+            onPress={this.logout}
             size={25} 
             color="white"
             style={styles.navBarButton}
@@ -219,8 +468,22 @@ class HomeScreen extends Component {
             style={styles.navBarButton}
           />
           <Ionicons 
+            name="home" 
+            onPress={this.goIndex}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
             name="call" 
             onPress={this.goListin}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+            <Ionicons 
+            name="barcode" 
+            onPress={this.goBarcode}
             size={25} 
             color="white"
             style={styles.navBarButton}
@@ -304,7 +567,7 @@ class LoginScreen extends Component {
       this.showAlert(error);
   }
 
-  async goHome(alias,user,pass,fullname,idempresa,token) {
+  async goHome(alias,user,pass,fullname,idempresa,token,barcode) {
     await AsyncStorage.setItem('lastUser', "true");
     await AsyncStorage.setItem('alias', alias);
     await AsyncStorage.setItem('user', user);
@@ -312,7 +575,8 @@ class LoginScreen extends Component {
     await AsyncStorage.setItem('fullname', fullname);
     await AsyncStorage.setItem('idempresa', idempresa + "");
     await AsyncStorage.setItem('token', token);
-    var url = "https://desarrollo.dicloud.es/?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
+    await AsyncStorage.setItem('barcode', barcode);
+    var url = "https://admin.dicloud.es/index.asp?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
     this.props.navigation.navigate('Home',{url:url})
   }
 
@@ -333,7 +597,8 @@ class LoginScreen extends Component {
             let fullname = JSON.parse(JSON.stringify(responseJson.fullName))
             let token = JSON.parse(JSON.stringify(responseJson.token))
             let idempresa = JSON.parse(JSON.stringify(responseJson.idempresa))
-            this.goHome(alias,user,pass,fullname,idempresa,token)
+            let barcode = JSON.parse(JSON.stringify(responseJson.barcode))
+            this.goHome(alias,user,pass,fullname,idempresa,token, barcode)
           } else {
             this.handleError(error)
           }
@@ -413,15 +678,12 @@ class MainScreen extends Component {
     });
     await new Promise(resolve => setTimeout(resolve, 2000));
     if (lastUser == "true") {
-      var url = "https://desarrollo.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
+      var url = "https://admin.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
       this.props.navigation.navigate('Home',{url:url})
     } else {
       this.props.navigation.navigate('Login')
-    }
+    } 
   };
-
-  // aspa siempre en ficha
-  // sesion storage con select
 
   render(){
     return (
@@ -473,7 +735,26 @@ const AppNavigator = createStackNavigator({
       header: null
     }
   },
+  Listin: {
+    screen: ListinScreen,
+    navigationOptions: {
+      header: null
+    }
+  },
+  Barcode: {
+    screen: BarcodeScreen,
+    navigationOptions: {
+      header: null
+    }
+  },
 });
+
+export class Barcode {
+  constructor(quantity, code) {
+    this.quantity = quantity;
+    this.code = code;
+  }
+}
 
 export default createAppContainer(AppNavigator);
 
@@ -523,12 +804,28 @@ const styles = StyleSheet.create({
     width: 150,
     margin: 20 
   },
+  appButtonBarcodeContainer: {
+    elevation: 8,
+    backgroundColor: "#1A5276",
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    alignSelf: 'center',
+    width: 150,
+    margin: 20 
+  },
   appButtonText: {
     fontSize: 15,
     color: "#fff",
     fontWeight: "bold",
     alignSelf: "center",
     textTransform: "uppercase"
+  },
+  appButtonTextSave: {
+    fontSize: 15,
+    color: "#1A5276",
+    fontWeight: "bold",
+    alignSelf: "center"
   },
   navBarButton: {
     color: '#FFFFFF',
@@ -541,7 +838,7 @@ const styles = StyleSheet.create({
     height: 50,
     alignItems: 'center', 
     justifyContent: 'center', 
-    backgroundColor:"#1C538E", 
+    backgroundColor:"#1A5276", 
     flexDirection:'row', 
     textAlignVertical: 'center'
   },
@@ -550,7 +847,8 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: 'bold',
     textAlign: 'center',
-    fontSize: 20
+    fontSize: 20,
+    backgroundColor: "#1A5276"
   },
   loading: {
     position: 'absolute',
@@ -572,5 +870,16 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontSize: 25,
     alignSelf: "center"
+  },
+  headerAccounts: {
+    color: '#1A5276',
+    textAlign:'center',
+    fontSize: 20,
+    fontWeight: "bold",
+    alignSelf: "center",
+    paddingTop: 20,
+  },
+  checkbox: {
+    color: '#1A5276'
   }
 });
