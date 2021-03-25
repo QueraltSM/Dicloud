@@ -26,6 +26,53 @@ class ListinScreen extends Component {
     this.props.navigation.navigate("Home")
   }
 
+  goBarcode = () => {
+    this.props.navigation.navigate("Barcode")
+  }
+
+  saveLogout =  async (state) => {
+    await AsyncStorage.setItem('lastUser', "false");
+    if (!state) {
+      await AsyncStorage.setItem('saveData', "false");
+      this.props.navigation.push('Login');
+    } else {
+      await AsyncStorage.setItem('saveData', "true");
+      this.props.navigation.navigate('Login');
+    }
+  }
+
+  logout = async () => {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Procedo a desconectar",
+        "¿Mantengo tu identificación actual?",
+        [
+          {
+            text: 'Sí',
+            onPress: () => {
+              resolve(this.saveLogout(true));
+            },
+          },
+          {
+            text: 'No',
+            onPress: () => {
+              resolve(this.saveLogout(false));
+            },
+          },
+          {
+            text: 'Cancelar',
+            onPress: () => {
+              resolve('Cancel');
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    
+    await AsyncAlert();
+  }
+
   render() {
     return(
       <View style={{flex: 1}}>
@@ -98,13 +145,6 @@ class ListinScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
-          <Ionicons 
-            name="call" 
-            onPress={this.goListin}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
             <Ionicons 
             name="barcode" 
             onPress={this.goBarcode}
@@ -125,12 +165,12 @@ class BarcodeScreen extends Component {
   
   constructor(props) {
     super(props);
-    this.state = { barcodes: [Barcode], code: "", quantity: "1" };
+    this.state = { barcodes: [Barcode], code: "", quantity: "" };
   }
 
-  showAlert = (message) => {
+  showAlert = (title, message) => {
     Alert.alert(
-      "Error",
+      title,
       message,
       [
         {
@@ -149,24 +189,21 @@ class BarcodeScreen extends Component {
         barcodes = []
       }
       this.setState({ barcodes: barcodes })
-      console.log("size:"+this.state.barcodes.length)
     })
   }
 
   async setBarcode(b){
     console.log("setNewBarcode="+b.code + " actual="+this.state.code)
     if (b.code == this.state.code) {
+      console.log("igual")
       var q = {
         quantity: Number(b.quantity) + Number(this.state.quantity),
         code: b.code
       }
       this.aux_barcodes.push(q);
     } else {
-      var q = {
-        quantity: this.state.quantity,
-        code: this.state.code
-      }
-      this.aux_barcodes.push(q);
+      console.log("distinto")
+      this.aux_barcodes.push(b);
     }
   }
 
@@ -180,7 +217,6 @@ class BarcodeScreen extends Component {
 
   saveCode = async () => {
     this.aux_barcodes = []
-    var notified = false
     var allCodes = this.state.barcodes
     if (this.state.code == "") {
       this.showAlert("El código no puede ser vacío")
@@ -196,9 +232,130 @@ class BarcodeScreen extends Component {
         this.setBarcode(b)
       }
     }
+    console.log(this.aux_barcodes)
     this.setState({ barcodes: this.aux_barcodes })
     await new AsyncStorage.setItem("barcodes", JSON.stringify(this.aux_barcodes))
+    this.codeInput.clear()
+    this.quantityInput.clear()
   }
+
+  modifyCode = (item) => {
+    this.setState({code: item.code})
+    this.setState({quantity: item.quantity + ""})
+    this.showAlert("Atención", "Modifique el código, la cantidad o ambos como desee")
+   }
+
+  async removeCode(item) {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Borrar código de forma permanente",
+        "¿Desea borrar el código "+ item.code+" ("+item.quantity+") ?",
+        [
+          {
+            text: 'Sí',
+            onPress: () => {
+              resolve(this.removeCode());
+            },
+          },
+          {
+            text: 'No',
+            onPress: () => {
+              resolve(this.saveLogout(false));
+            },
+          },
+          {
+            text: 'Cancelar',
+            onPress: () => {
+              resolve('Cancel');
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    await AsyncAlert();
+  }
+
+  askAction = async (item) => {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Operaciones permitidas",
+        "¿Desea borrar o editar "+ item.code+" ("+item.quantity+") ?",
+        [
+          {
+            text: 'Borrar',
+            onPress: () => {
+              resolve(this.removeCode(item));
+            },
+          },
+          {
+            text: 'Editar',
+            onPress: () => {
+              resolve(this.modifyCode(item));
+            },
+          },
+          {
+            text: 'Cancelar',
+            onPress: () => {
+              resolve('Cancel');
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    await AsyncAlert();
+  }
+
+  saveLogout =  async (state) => {
+    await AsyncStorage.setItem('lastUser', "false");
+    if (!state) {
+      await AsyncStorage.setItem('saveData', "false");
+      this.props.navigation.push('Login');
+    } else {
+      await AsyncStorage.setItem('saveData', "true");
+      this.props.navigation.navigate('Login');
+    }
+  }
+
+  logout = async () => {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Procedo a desconectar",
+        "¿Mantengo tu identificación actual?",
+        [
+          {
+            text: 'Sí',
+            onPress: () => {
+              resolve(this.saveLogout(true));
+            },
+          },
+          {
+            text: 'No',
+            onPress: () => {
+              resolve(this.saveLogout(false));
+            },
+          },
+          {
+            text: 'Cancelar',
+            onPress: () => {
+              resolve('Cancel');
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    
+    await AsyncAlert();
+  }
+
+  showFlatList(){
+    if (this.state.barcodes.length > 0) {
+      return <Text style={styles.appButtonTextSave}>Seleccione el código que desee eliminar o editar</Text>
+    }
+    return null;
+ }
 
   render(){
     return(
@@ -207,20 +364,21 @@ class BarcodeScreen extends Component {
           <Text style={styles.navBarHeader}>Lector de códigos</Text>
         </View>
         <View style={{flex: 1}}>
-        <TextInput placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center'}} onChangeText={(code) => this.setState({code})} />
-        <TextInput placeholder="Cantidad por defecto: 1" style ={{ alignSelf: 'center'}} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
+        <TextInput ref={input => { this.codeInput = input }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center'}} onChangeText={(code) => this.setState({code})} />
+        <TextInput ref={input => { this.quantityInput = input }} value={this.state.quantity} placeholder="Cantidad por defecto: 1" style ={{ alignSelf: 'center'}} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
         <TouchableOpacity onPress={this.saveCode}>
           <Text style={styles.appButtonTextSave}>Guardar y seguir</Text>
         </TouchableOpacity> 
         <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
           <Text style={styles.appButtonText}>Escanear</Text>
-        </TouchableOpacity>  
+        </TouchableOpacity> 
+        {this.showFlatList}
         <FlatList 
         data={ this.state.barcodes } 
         renderItem={({ item, index, separators }) => (
           <TouchableOpacity
             key={item}
-            onPress={() => this.loginUser(item)}>
+            onPress={() => this.askAction(item)}>
             <View> 
               <Text style={styles.headerAccounts}>{item.code} ({item.quantity})</Text>
             </View>
@@ -313,9 +471,34 @@ class HomeScreen extends Component {
     await AsyncStorage.getItem("barcode").then((value) => {
       this.barcode = value;
     })
-    console.log("barcode:"+this.barcode)
   }
 
+  showListinButton(){
+    if (this.barcode) {
+      return <Ionicons 
+      name="call" 
+      onPress={this.goListin}
+      size={25} 
+      color="white"
+      style={styles.navBarButton}
+    />
+    }
+    return null;
+  }
+
+  showBarcodeButton(){
+    if (this.barcode) {
+      return <Ionicons 
+       name="barcode" 
+       onPress={this.goBarcode}
+       size={25} 
+       color="white"
+       style={styles.navBarButton}
+     />;
+    }
+    return null;
+  }
+ 
   async getNews() {
     await this.getUser()
     var messages = [Messages]
@@ -474,20 +657,8 @@ class HomeScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
-          <Ionicons 
-            name="call" 
-            onPress={this.goListin}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
-            <Ionicons 
-            name="barcode" 
-            onPress={this.goBarcode}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
+          {this.showListinButton()}
+          {this.showBarcodeButton()}
         </View>
     </View>
     )
