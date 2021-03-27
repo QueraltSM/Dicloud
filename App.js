@@ -9,6 +9,7 @@ import { BackHandler } from 'react-native';
 import axios from 'axios';
 import { FlatList } from 'react-native-gesture-handler';
 import PushNotification from 'react-native-push-notification';
+import BackgroundFetch from 'react-native-background-fetch';
 
 class ListinScreen extends Component {
 
@@ -239,14 +240,15 @@ class BarcodeScreen extends Component {
     }
     await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
     this.setState({ barcodes: array})
-    this.codeInput.clear()
+    //this.codeInput.clear()
+    this.setState({ code: "" })
     this.setState({ quantity: "1" })
     this.setState({ modify: false })
   }
   saveCode = async () => {
     this.aux_barcodes = []
     if (this.state.code == "" || this.state.quantity == "") {
-      this.showAlert("Error", "El código no puede ser vacío")
+      this.showAlert("Error", "Complete todos los campos requeridos")
     } else {
       this.setBarcode()
     }
@@ -380,7 +382,7 @@ class BarcodeScreen extends Component {
       return <Text style={styles.appButtonTextSave}>Seleccione el código para eliminar o editar</Text>
     }
     return null;
- }
+  }
 
   render(){
     return(
@@ -389,8 +391,10 @@ class BarcodeScreen extends Component {
           <Text style={styles.navBarHeader}>Lector de códigos</Text>
         </View>
         <View style={{flex: 1}}>
-        <TextInput ref={x => { this.codeInput = x }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center', textAlign: 'center'}} onChangeText={(code) => this.setState({code})} />
-        <TextInput ref={y => { this.quantityInput = y }} value={this.state.quantity} style ={{ alignSelf: 'center', textAlign: 'center'}} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
+        <Text></Text> 
+        <Text></Text>
+        <TextInput ref={x => { this.codeInput = x }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(code) => this.setState({code})} />
+        <TextInput ref={y => { this.quantityInput = y }} value={this.state.quantity} style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
         <Text></Text>
         <TouchableOpacity onPress={this.saveCode}>
           <Text style={styles.appButtonTextSave}>Guardar y seguir</Text>
@@ -478,6 +482,7 @@ class HomeScreen extends Component {
     }
     this.setWebview()
     this.configNotifications()
+    this.setBackgroundFetch()
     this.getNews()
     setInterval(() => {
       this.getNews()
@@ -540,6 +545,24 @@ class HomeScreen extends Component {
       soundName: 'default',
       channelId: "channel-id"
     });
+  }
+
+  setBackgroundFetch = () => {
+    console.log("setBackgroundFetch")
+    BackgroundFetch.configure({
+      minimumFetchInterval: 15, // fetch interval in minutes
+      enableHeadless: true,
+      stopOnTerminate: false,
+      periodic: true,
+    },
+    async taskId => {
+      this.getNews()
+      BackgroundFetch.finish(taskId);
+    },
+    error => {
+      console.error('RNBackgroundFetch failed to start.');
+      },
+    );
   }
 
   showListinButton(){
