@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-community/async-storage';
 import { BackHandler } from 'react-native';
 import axios from 'axios';
 import { FlatList } from 'react-native-gesture-handler';
+import PushNotification from 'react-native-push-notification';
 
 class ListinScreen extends Component {
 
@@ -19,7 +20,11 @@ class ListinScreen extends Component {
 
   constructor(props) {
     super(props);
-    this.state = { url: "https://admin.dicloud.es/companies/listin.asp" }
+    this.state = { url: "https://desarrollo.dicloud.es/companies/listin.asp" }
+  }
+
+  reload = () => {
+    this.webView.ref.reload();
   }
 
   goHome = () => {
@@ -34,7 +39,7 @@ class ListinScreen extends Component {
     await AsyncStorage.setItem('lastUser', "false");
     if (!state) {
       await AsyncStorage.setItem('saveData', "false");
-      this.props.navigation.push('Login');
+      this.props.navigation.navigate('Login');
     } else {
       await AsyncStorage.setItem('saveData', "true");
       this.props.navigation.navigate('Login');
@@ -165,7 +170,7 @@ class BarcodeScreen extends Component {
   
   constructor(props) {
     super(props);
-    this.state = { barcodes: [Barcode], code: "", quantity: "" };
+    this.state = { barcodes: [Barcode], code: "", quantity: "1", modify:false, modifyItem: Barcode };
   }
 
   showAlert = (title, message) => {
@@ -192,21 +197,6 @@ class BarcodeScreen extends Component {
     })
   }
 
-  async setBarcode(b){
-    console.log("setNewBarcode="+b.code + " actual="+this.state.code)
-    if (b.code == this.state.code) {
-      console.log("igual")
-      var q = {
-        quantity: Number(b.quantity) + Number(this.state.quantity),
-        code: b.code
-      }
-      this.aux_barcodes.push(q);
-    } else {
-      console.log("distinto")
-      this.aux_barcodes.push(b);
-    }
-  }
-
   goHome = () => {
     this.props.navigation.navigate("Home")
   }
@@ -215,35 +205,70 @@ class BarcodeScreen extends Component {
     this.props.navigation.navigate("Listin")
   }
 
+  async setBarcode() {
+    var b = {
+      quantity: this.state.quantity,
+      code: this.state.code
+    }
+    var array = [Barcode]
+    array = this.state.barcodes
+    var index = array.findIndex(i => i.code === b.code)
+    if (this.state.modify) {
+      var item = this.state.modifyItem
+      index = array.findIndex(i => i.code === item.code)
+    }
+    console.log("index = " + index + " modify = " + this.state.modify)
+    if (index !== -1) {
+      array.splice(index, 1);
+      if (!this.state.modify) {
+        var i = {
+          quantity: Number(b.quantity) + Number(this.state.quantity),
+          code: b.code
+        }
+        array.push(i);
+        console.log("i="+i.code + " and " + i.quantity)
+      } else {
+        array.push(b);
+      }
+    } else {
+      var r = {
+        quantity: b.quantity,
+        code: b.code
+      }
+      array.push(r);
+    }
+    await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
+    this.setState({ barcodes: array})
+    this.codeInput.clear()
+    this.setState({ quantity: "1" })
+    this.setState({ modify: false })
+  }
   saveCode = async () => {
     this.aux_barcodes = []
-    var allCodes = this.state.barcodes
-    if (this.state.code == "") {
-      this.showAlert("El código no puede ser vacío")
+    if (this.state.code == "" || this.state.quantity == "") {
+      this.showAlert("Error", "El código no puede ser vacío")
     } else {
-      allCodes.forEach(x => {
-        this.setBarcode(x)
-      })
-      if (allCodes.length == 0) {
-        var b = {
-          quantity: this.state.quantity,
-          code: this.state.code
-        }
-        this.setBarcode(b)
-      }
+      this.setBarcode()
     }
-    console.log(this.aux_barcodes)
-    this.setState({ barcodes: this.aux_barcodes })
-    await new AsyncStorage.setItem("barcodes", JSON.stringify(this.aux_barcodes))
-    this.codeInput.clear()
-    this.quantityInput.clear()
   }
 
   modifyCode = (item) => {
+    this.setState({modify:true})
+    this.setState({modifyItem: item})
     this.setState({code: item.code})
     this.setState({quantity: item.quantity + ""})
     this.showAlert("Atención", "Modifique el código, la cantidad o ambos como desee")
    }
+
+  async removeItem(item) {
+    var array = this.state.barcodes
+    var index = array.indexOf(item)
+    if (index !== -1) {
+      array.splice(index, 1);
+      this.setState({barcodes: array});
+      await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
+    }
+  }
 
   async removeCode(item) {
     const AsyncAlert = (title, msg) => new Promise((resolve) => {
@@ -254,13 +279,13 @@ class BarcodeScreen extends Component {
           {
             text: 'Sí',
             onPress: () => {
-              resolve(this.removeCode());
+              resolve(this.removeItem(item));
             },
           },
           {
             text: 'No',
             onPress: () => {
-              resolve(this.saveLogout(false));
+              resolve('No');
             },
           },
           {
@@ -311,7 +336,7 @@ class BarcodeScreen extends Component {
     await AsyncStorage.setItem('lastUser', "false");
     if (!state) {
       await AsyncStorage.setItem('saveData', "false");
-      this.props.navigation.push('Login');
+      this.props.navigation.navigate('Login');
     } else {
       await AsyncStorage.setItem('saveData', "true");
       this.props.navigation.navigate('Login');
@@ -352,7 +377,7 @@ class BarcodeScreen extends Component {
 
   showFlatList(){
     if (this.state.barcodes.length > 0) {
-      return <Text style={styles.appButtonTextSave}>Seleccione el código que desee eliminar o editar</Text>
+      return <Text style={styles.appButtonTextSave}>Seleccione el código para eliminar o editar</Text>
     }
     return null;
  }
@@ -364,17 +389,21 @@ class BarcodeScreen extends Component {
           <Text style={styles.navBarHeader}>Lector de códigos</Text>
         </View>
         <View style={{flex: 1}}>
-        <TextInput ref={input => { this.codeInput = input }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center'}} onChangeText={(code) => this.setState({code})} />
-        <TextInput ref={input => { this.quantityInput = input }} value={this.state.quantity} placeholder="Cantidad por defecto: 1" style ={{ alignSelf: 'center'}} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
+        <TextInput ref={x => { this.codeInput = x }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center', textAlign: 'center'}} onChangeText={(code) => this.setState({code})} />
+        <TextInput ref={y => { this.quantityInput = y }} value={this.state.quantity} style ={{ alignSelf: 'center', textAlign: 'center'}} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
+        <Text></Text>
         <TouchableOpacity onPress={this.saveCode}>
           <Text style={styles.appButtonTextSave}>Guardar y seguir</Text>
         </TouchableOpacity> 
+        <Text></Text>
         <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
           <Text style={styles.appButtonText}>Escanear</Text>
         </TouchableOpacity> 
-        {this.showFlatList}
+        <Text></Text> 
+        <Text></Text>
+        {this.showFlatList()}
         <FlatList 
-        data={ this.state.barcodes } 
+        data={ this.state.barcodes.reverse() } 
         renderItem={({ item, index, separators }) => (
           <TouchableOpacity
             key={item}
@@ -439,14 +468,20 @@ class HomeScreen extends Component {
   state = {
     url: ""
   }
+  aux_messages = []
 
   constructor(props) {
     super(props);
     this.state = {
-      url: this.props.navigation.state.params.url
+      url: this.props.navigation.state.params.url,
+      messages: [Messages]
     }
     this.setWebview()
+    this.configNotifications()
     this.getNews()
+    setInterval(() => {
+      this.getNews()
+    }, 60000);
   } 
 
   async getUser() {
@@ -471,6 +506,40 @@ class HomeScreen extends Component {
     await AsyncStorage.getItem("barcode").then((value) => {
       this.barcode = value;
     })
+  }
+
+  configNotifications = () => {
+    PushNotification.configure({
+      onNotification: function(notification) {},
+      permissions: {
+        alert: true,
+        badge: true,
+        sound: true,
+      },
+      requestPermissions: Platform.OS === 'ios',
+      popInitialNotification: true,
+    });
+    PushNotification.createChannel({
+      channelId: "channel-id", // (required)
+      channelName: "My channel", // (required)
+      channelDescription: "A channel to categorise your notifications", // (optional) default: undefined.
+      playSound: false, // (optional) default: true
+      soundName: "default", // (optional) See `soundName` parameter of `localNotification` function
+      importance: 4, // (optional) default: 4. Int value of the Android notification importance
+      vibrate: true, // (optional) default: true. Creates the default vibration patten if true.
+    },
+    (created) => console.log(`createChannel returned '${created}'`) // (optional) callback returns whether the channel was created, false means it already existed.
+    );
+  }
+
+  pushNotification = (message) => {
+    PushNotification.localNotification({
+      title: "Dicloud",
+      message: message,
+      playSound: true,
+      soundName: 'default',
+      channelId: "channel-id"
+    });
   }
 
   showListinButton(){
@@ -498,20 +567,58 @@ class HomeScreen extends Component {
     }
     return null;
   }
- 
+
+  async setNews(m){
+    this.aux_messages = []
+    var notified = false
+    var notified_messages = await new AsyncStorage.getItem("messages")
+    var messages = JSON.parse(notified_messages)
+    if (messages != null) {
+      await messages.forEach(x => {
+        if (x.messages_count == m.messages_count && x.from == m.from) {
+          notified = true
+        }
+      })
+    } else {
+      messages = []
+    }
+    if (!notified) {
+      this.aux_messages = messages
+      this.aux_messages.push(m);
+      this.setState({ messages: this.aux_messages })
+      await new AsyncStorage.setItem("messages", JSON.stringify(this.aux_messages))
+      var result = "mensaje"
+      if (m.messages_count > 1) {
+        result = "mensajes"
+      }
+      this.pushNotification("Tienes " + m.messages_count + " " + result + " de " + m.from)
+    }
+  }
+
   async getNews() {
     await this.getUser()
-    var messages = [Messages]
-    const response =await axios.post("https://app.dicloud.es/getPendingNews.asp",{"appSource": "Dicloud", "aliasDb": this.alias, "user":this.user, "password": this.password, "token": this.token})
-    response.data.messages.forEach(nx => {
-      var n =  {
-        from_id: nx.from_id,
-        from: nx.from,
-        last_messages_timestamp: nx.last_messages_timestamp,
-        messages_count: nx.messages_count,
+    console.log("getNews="+this.alias + " :: " + this.user)
+    const requestOptions = {
+      method: 'POST',
+      body: JSON.stringify({aliasDb: this.alias, user: this.user, password: this.password, token:this.token, appSource: "Dicloud"})
+    };
+    await fetch('https://app.dicloud.es/getPendingNews.asp', requestOptions)
+    .then((response) => response.json())
+    .then((responseJson) => {
+      console.log(responseJson)
+      var messages = responseJson.messages
+      if (messages != null) {
+        messages.forEach(nx => {
+          var m =  {
+            from: nx.from,
+            from_id: nx.from_id,
+            last_message_timestamp: nx.last_message_timestamp,
+            messages_count: nx.messages_count,
+          }
+          this.setNews(m)
+        });
       }
-      messages.push(n);
-    });
+    }).catch(() => {});
   }
 
   setWebview =  async () => {
@@ -527,7 +634,7 @@ class HomeScreen extends Component {
   }
 
   goIndex = () => {
-    this.setState({ url: "https://admin.dicloud.es/index.asp" })
+    this.setState({ url: "https://desarrollo.dicloud.es/index.asp" })
   }
 
   goListin = () => {
@@ -539,14 +646,14 @@ class HomeScreen extends Component {
   }
 
   goBarcode = () => {
-    this.props.navigation.push('Barcode');
+    this.props.navigation.navigate('Barcode');
   }
 
   saveLogout =  async (state) => {
     await AsyncStorage.setItem('lastUser', "false");
     if (!state) {
       await AsyncStorage.setItem('saveData', "false");
-      this.props.navigation.push('Login');
+      this.props.navigation.navigate('Login');
     } else {
       await AsyncStorage.setItem('saveData', "true");
       this.props.navigation.navigate('Login');
@@ -747,7 +854,7 @@ class LoginScreen extends Component {
     await AsyncStorage.setItem('idempresa', idempresa + "");
     await AsyncStorage.setItem('token', token);
     await AsyncStorage.setItem('barcode', barcode);
-    var url = "https://admin.dicloud.es/index.asp?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
+    var url = "https://desarrollo.dicloud.es/index.asp?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
     this.props.navigation.navigate('Home',{url:url})
   }
 
@@ -849,7 +956,7 @@ class MainScreen extends Component {
     });
     await new Promise(resolve => setTimeout(resolve, 2000));
     if (lastUser == "true") {
-      var url = "https://admin.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
+      var url = "https://desarrollo.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
       this.props.navigation.navigate('Home',{url:url})
     } else {
       this.props.navigation.navigate('Login')
@@ -891,31 +998,36 @@ const AppNavigator = createStackNavigator({
   Main: {
     screen: MainScreen,
     navigationOptions: {
-      header: null
+      header: null,
+      animationEnabled: false
     }
   },
   Login: {
     screen: LoginScreen,
     navigationOptions: {
-      header: null
+      header: null,
+      animationEnabled: false
     }
   },
   Home: {
     screen: HomeScreen,
     navigationOptions: {
-      header: null
+      header: null,
+      animationEnabled: false
     }
   },
   Listin: {
     screen: ListinScreen,
     navigationOptions: {
-      header: null
+      header: null,
+      animationEnabled: false
     }
   },
   Barcode: {
     screen: BarcodeScreen,
     navigationOptions: {
-      header: null
+      header: null,
+      animationEnabled: false
     }
   },
 });
