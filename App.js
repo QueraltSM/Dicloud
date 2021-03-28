@@ -209,7 +209,8 @@ class BarcodeScreen extends Component {
   async setBarcode() {
     var b = {
       quantity: this.state.quantity,
-      code: this.state.code
+      code: this.state.code,
+      time: new Date().getTime()
     }
     var array = [Barcode]
     array = this.state.barcodes
@@ -218,28 +219,29 @@ class BarcodeScreen extends Component {
       var item = this.state.modifyItem
       index = array.findIndex(i => i.code === item.code)
     }
-    console.log("index = " + index + " modify = " + this.state.modify)
     if (index !== -1) {
       array.splice(index, 1);
+      array.sort()
       if (!this.state.modify) {
         var i = {
           quantity: Number(b.quantity) + Number(this.state.quantity),
-          code: b.code
+          code: b.code,
+          time: b.time
         }
         array.push(i);
-        console.log("i="+i.code + " and " + i.quantity)
       } else {
         array.push(b);
       }
     } else {
       var r = {
         quantity: b.quantity,
-        code: b.code
+        code: b.code,
+        time: b.time
       }
       array.push(r);
     }
     await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
-    this.setState({ barcodes: array})
+    this.setState({ barcodes: array })
     //this.codeInput.clear()
     this.setState({ code: "" })
     this.setState({ quantity: "1" })
@@ -267,7 +269,7 @@ class BarcodeScreen extends Component {
     var index = array.indexOf(item)
     if (index !== -1) {
       array.splice(index, 1);
-      this.setState({barcodes: array});
+      this.setState({barcodes: array });
       await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
     }
   }
@@ -373,8 +375,53 @@ class BarcodeScreen extends Component {
         { cancelable: false },
       );
     });
-    
     await AsyncAlert();
+  }
+
+  async removeAllCodes() {
+    var array = []
+    this.setState({barcodes: array});
+    await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
+  }
+
+  removeAll = async () => {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Eliminar todos los códigos",
+        "¿Está seguro de que desea borrar todos los códigos permanentemente?",
+        [
+          {
+            text: 'Sí',
+            onPress: () => {
+              resolve(this.removeAllCodes());
+            },
+          },
+          {
+            text: 'No',
+            onPress: () => {
+              resolve('No');
+            },
+          },
+          {
+            text: 'Cancelar',
+            onPress: () => {
+              resolve('Cancel');
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    await AsyncAlert();
+  }
+
+  deleteFlatList() {
+    if (this.state.barcodes.length > 0) {
+      return <TouchableOpacity onPress={this.removeAll}>
+      <Text style={styles.appButtonTextDelete}>Eliminar todos los códigos</Text>
+    </TouchableOpacity> 
+    }
+    return null;
   }
 
   showFlatList(){
@@ -397,17 +444,19 @@ class BarcodeScreen extends Component {
         <TextInput ref={y => { this.quantityInput = y }} value={this.state.quantity} style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
         <Text></Text>
         <TouchableOpacity onPress={this.saveCode}>
-          <Text style={styles.appButtonTextSave}>Guardar y seguir</Text>
+          <Text style={styles.appButtonTextSave}>Guardar código y seguir</Text>
         </TouchableOpacity> 
         <Text></Text>
         <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
           <Text style={styles.appButtonText}>Escanear</Text>
         </TouchableOpacity> 
+        <Text></Text>
+        {this.deleteFlatList()}
         <Text></Text> 
         <Text></Text>
         {this.showFlatList()}
-        <FlatList 
-        data={ this.state.barcodes.reverse() } 
+        <FlatList
+        data={ this.state.barcodes.sort((a,b) => a.time < b.time) } 
         renderItem={({ item, index, separators }) => (
           <TouchableOpacity
             key={item}
@@ -418,7 +467,6 @@ class BarcodeScreen extends Component {
           </TouchableOpacity>
         )}
         keyExtractor={(item) => item.user}
-        
       />
         </View>
         <View style={styles.navBar}>
@@ -548,7 +596,6 @@ class HomeScreen extends Component {
   }
 
   setBackgroundFetch = () => {
-    console.log("setBackgroundFetch")
     BackgroundFetch.configure({
       minimumFetchInterval: 15, // fetch interval in minutes
       enableHeadless: true,
@@ -620,7 +667,6 @@ class HomeScreen extends Component {
 
   async getNews() {
     await this.getUser()
-    console.log("getNews="+this.alias + " :: " + this.user)
     const requestOptions = {
       method: 'POST',
       body: JSON.stringify({aliasDb: this.alias, user: this.user, password: this.password, token:this.token, appSource: "Dicloud"})
@@ -628,7 +674,6 @@ class HomeScreen extends Component {
     await fetch('https://app.dicloud.es/getPendingNews.asp', requestOptions)
     .then((response) => response.json())
     .then((responseJson) => {
-      console.log(responseJson)
       var messages = responseJson.messages
       if (messages != null) {
         messages.forEach(nx => {
@@ -1056,9 +1101,10 @@ const AppNavigator = createStackNavigator({
 });
 
 export class Barcode {
-  constructor(quantity, code) {
+  constructor(quantity, code, time) {
     this.quantity = quantity;
     this.code = code;
+    this.time = time;
   }
 }
 
@@ -1123,6 +1169,13 @@ const styles = StyleSheet.create({
   appButtonText: {
     fontSize: 15,
     color: "#fff",
+    fontWeight: "bold",
+    alignSelf: "center",
+    textTransform: "uppercase"
+  },
+  appButtonTextDelete: {
+    fontSize: 15,
+    color: "#922B21",
     fontWeight: "bold",
     alignSelf: "center",
     textTransform: "uppercase"
