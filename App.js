@@ -10,6 +10,7 @@ import axios from 'axios';
 import { FlatList } from 'react-native-gesture-handler';
 import PushNotification from 'react-native-push-notification';
 import BackgroundFetch from 'react-native-background-fetch';
+import { RNCamera } from 'react-native-camera';
 
 class ListinScreen extends Component {
 
@@ -171,7 +172,7 @@ class BarcodeScreen extends Component {
   
   constructor(props) {
     super(props);
-    this.state = { barcodes: [Barcode], code: "", quantity: "1", modify:false, modifyItem: Barcode };
+    this.state = { barcodes: [Barcode], code: "", quantity: "1", modify:false, modifyItem: Barcode, showbarcode: false };
   }
 
   showAlert = (title, message) => {
@@ -198,6 +199,10 @@ class BarcodeScreen extends Component {
     })
   }
 
+  sendCodes = () => {
+    this.props.navigation.navigate("SendCodes")
+  }
+
   goHome = () => {
     this.props.navigation.navigate("Home")
   }
@@ -219,10 +224,13 @@ class BarcodeScreen extends Component {
       var item = this.state.modifyItem
       index = array.findIndex(i => i.code === item.code)
     }
-    if (index !== -1) {
+    console.log("index="+index)
+    if (index > -1) {
       array.splice(index, 1);
       array.sort()
       if (!this.state.modify) {
+        var sum=Number(b.quantity) + Number(this.state.quantity)
+        console.log("b.code="+b.code+ " and sum="+sum)
         var i = {
           quantity: Number(b.quantity) + Number(this.state.quantity),
           code: b.code,
@@ -242,6 +250,7 @@ class BarcodeScreen extends Component {
     }
     await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
     this.setState({ barcodes: array })
+    console.log("array="+JSON.stringify(array))
     //this.codeInput.clear()
     this.setState({ code: "" })
     this.setState({ quantity: "1" })
@@ -431,76 +440,151 @@ class BarcodeScreen extends Component {
     return null;
   }
 
+  startBarcode = () => {
+    this.setState({ showbarcode: true })
+  }
+
+  saveAndQuit = (e) => {
+    this.setState({ code: e })
+    this.saveCode()
+    return true
+  }
+
+  saveAndContinue = (e) => {
+    this.setState({ code: e })
+    this.saveCode()
+    this.setState({ showbarcode: true })
+    return true
+  }
+
+  quitBarcode = () => {
+    this.setState({ showbarcode: false })
+    return true
+  }
+
+  onBarCodeRead = async (e) => {
+    this.setState({ showbarcode: false })
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "El código ha sido escaneado",
+        "¿Qué desea hacer ahora?",
+        [
+          {
+            text: 'Salir',
+            onPress: () => {
+              resolve(this.quitBarcode());
+            },
+          },
+          {
+            text: 'Guardar y salir',
+            onPress: () => {
+              resolve(this.saveAndQuit(e.data));
+            },
+          },
+          {
+            text: 'Guardar y seguir escaneando',
+            onPress: () => {
+              resolve(this.saveAndContinue(e.data));
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    await AsyncAlert();
+  }
+
   render(){
-    return(
-      <View style={{flex: 1}}>
-        <View style={styles.navBar}>
-          <Text style={styles.navBarHeader}>Lector de códigos</Text>
-        </View>
+    if (this.state.showbarcode) {
+      return (
+        <RNCamera
+          ref={ref => {
+            this.camera = ref;
+          }}
+          style={styles.preview}
+          type={RNCamera.Constants.Type.back}
+          flashMode={RNCamera.Constants.FlashMode.on}
+          androidCameraPermissionOptions={{
+            title: 'Permission to use camera',
+            message: 'We need your permission to use your camera',
+            buttonPositive: 'Ok',
+            buttonNegative: 'Cancel',
+          }}
+          onBarCodeRead={this.onBarCodeRead}
+        />
+      )
+    } else {
+      return(
         <View style={{flex: 1}}>
-        <Text></Text> 
-        <Text></Text>
-        <TextInput ref={x => { this.codeInput = x }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(code) => this.setState({code})} />
-        <TextInput ref={y => { this.quantityInput = y }} value={this.state.quantity} style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
-        <Text></Text>
-        <TouchableOpacity onPress={this.saveCode}>
-          <Text style={styles.appButtonTextSave}>Guardar código y seguir</Text>
-        </TouchableOpacity> 
-        <Text></Text>
-        <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
-          <Text style={styles.appButtonText}>Escanear</Text>
-        </TouchableOpacity> 
-        <Text></Text>
-        {this.deleteFlatList()}
-        <Text></Text> 
-        <Text></Text>
-        {this.showFlatList()}
-        <FlatList
-        data={ this.state.barcodes.sort((a,b) => a.time < b.time) } 
-        renderItem={({ item, index, separators }) => (
-          <TouchableOpacity
-            key={item}
-            onPress={() => this.askAction(item)}>
-            <View> 
-              <Text style={styles.headerAccounts}>{item.code} ({item.quantity})</Text>
-            </View>
-          </TouchableOpacity>
-        )}
-        keyExtractor={(item) => item.user}
-      />
-        </View>
-        <View style={styles.navBar}>
-        <Ionicons 
-            name="log-out-outline" 
-            onPress={this.logout}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
+          <View style={styles.navBar}>
+            <Text style={styles.navBarHeader}>Lector de códigos</Text>
+          </View>
+          <View style={{flex: 1}}>
+          <Text></Text> 
+          <Text></Text>
+          <TextInput ref={x => { this.codeInput = x }} value={this.state.code} placeholder="Escribir código o escanear directamente" style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(code) => this.setState({code})} />
+          <TextInput ref={y => { this.quantityInput = y }} value={this.state.quantity} style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(quantity) => this.setState({quantity})} keyboardType="numeric" />
+          <Text></Text>
+          <TouchableOpacity onPress={this.saveCode}>
+            <Text style={styles.appButtonTextSave}>Guardar código y seguir</Text>
+          </TouchableOpacity> 
+          <Text></Text>
+          <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
+            <Text style={styles.appButtonText}>Escanear</Text>
+          </TouchableOpacity> 
+          
+          <Text></Text>
+          {this.deleteFlatList()}
+          <Text></Text> 
+          <Text></Text>
+          {this.showFlatList()}
+          <FlatList
+          data={ this.state.barcodes.sort((a,b) => a.time < b.time) } 
+          renderItem={({ item, index, separators }) => (
+            <TouchableOpacity
+              key={item}
+              onPress={() => this.askAction(item)}>
+              <View> 
+                <Text style={styles.headerAccounts}>{item.code} ({item.quantity})</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.user}
+        />
+          </View>
+          <View style={styles.navBar}>
           <Ionicons 
-            name="home" 
-            onPress={this.goHome}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
-          <Ionicons 
-            name="call" 
-            onPress={this.goListin}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
+              name="log-out-outline" 
+              onPress={this.logout}
+              size={25} 
+              color="white"
+              style={styles.navBarButton}
+            />
             <Ionicons 
-            name="barcode" 
-            onPress={this.goBarcode}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
-        </View>
-        </View>
-    )
+              name="home" 
+              onPress={this.goHome}
+              size={25} 
+              color="white"
+              style={styles.navBarButton}
+            />
+            <Ionicons 
+              name="call" 
+              onPress={this.goListin}
+              size={25} 
+              color="white"
+              style={styles.navBarButton}
+            />
+            <Ionicons 
+              name="send" 
+              onPress={this.sendCodes}
+              size={25} 
+              color="white"
+              style={styles.navBarButton}
+            />
+          </View>
+          </View>
+      )
+    }
   }
 }
 
@@ -1240,5 +1324,10 @@ const styles = StyleSheet.create({
   },
   checkbox: {
     color: '#1A5276'
-  }
+  },
+  preview: {
+    flex: 1,
+    justifyContent: 'flex-end',
+    alignItems: 'center'
+  },
 });
