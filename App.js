@@ -217,30 +217,29 @@ class BarcodeScreen extends Component {
       code: this.state.code,
       time: new Date().getTime()
     }
-    var array = [Barcode]
-    array = this.state.barcodes
-    var index = array.findIndex(i => i.code === b.code)
-    if (this.state.modify) {
-      var item = this.state.modifyItem
-      index = array.findIndex(i => i.code === item.code)
-    }
-    console.log("index="+index)
-    if (index > -1) {
-      array.splice(index, 1);
-      array.sort()
-      if (!this.state.modify) {
-        var sum=Number(b.quantity) + Number(this.state.quantity)
-        console.log("b.code="+b.code+ " and sum="+sum)
-        var i = {
-          quantity: Number(b.quantity) + Number(this.state.quantity),
-          code: b.code,
-          time: b.time
+    var array = []
+    var contained = false
+    this.state.barcodes.forEach(i => {
+      if (i.code == this.state.code) {
+        contained = true
+        var j = {
+          quantity: Number(i.quantity) + Number(this.state.quantity),
+          code: i.code,
+          time: i.time
         }
-        array.push(i);
+        if (this.state.modify) {
+          j = {
+            quantity: Number(this.state.quantity),
+            code: i.code,
+            time: new Date().getTime()
+          }
+        }
+        array.push(j);
       } else {
-        array.push(b);
+        array.push(i);
       }
-    } else {
+    })
+    if (!contained) {
       var r = {
         quantity: b.quantity,
         code: b.code,
@@ -250,12 +249,12 @@ class BarcodeScreen extends Component {
     }
     await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
     this.setState({ barcodes: array })
-    console.log("array="+JSON.stringify(array))
-    //this.codeInput.clear()
     this.setState({ code: "" })
     this.setState({ quantity: "1" })
     this.setState({ modify: false })
   }
+
+  
   saveCode = async () => {
     this.aux_barcodes = []
     if (this.state.code == "" || this.state.quantity == "") {
@@ -549,7 +548,7 @@ class BarcodeScreen extends Component {
               </View>
             </TouchableOpacity>
           )}
-          keyExtractor={(item) => item.user}
+          keyExtractor={(item) => item.code}
         />
           </View>
           <View style={styles.navBar}>
