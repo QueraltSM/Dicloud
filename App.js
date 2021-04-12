@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, Linking, ActivityIndicator } from 'react-native';
+import { StyleSheet, TextInput, View, TouchableOpacity, Text, Image, Alert, Linking, ActivityIndicator, CheckBox} from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createAppContainer } from 'react-navigation';
 import { createStackNavigator} from 'react-navigation-stack';
@@ -12,21 +12,466 @@ import PushNotification from 'react-native-push-notification';
 import BackgroundFetch from 'react-native-background-fetch';
 import { RNCamera } from 'react-native-camera';
 
-class ListinScreen extends Component {
+class SettingsScreen extends Component {
 
-  WEBVIEW_REF = "listin"
-  webView = {
-    canGoBack: false,
-    ref: null,
-  }
 
   constructor(props) {
     super(props);
-    this.state = { url: "https://desarrollo.dicloud.es/companies/listin.asp" }
+    this.state = { notifications: false, barcode: false, inventario: false, entradas: false, salidas: false, pedido: false, venta: false, compra: false, orden_trabajo: false, listin: false  }
   }
 
-  reload = () => {
-    this.webView.ref.reload();
+  goHome = () => {
+    this.props.navigation.navigate("Home")
+  }
+
+  showOrdenTrabajo() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.orden_trabajo)}
+        onValueChange={this.setOrdenTrabajo}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Orden de trabajo</Text></View>;
+    }
+    return null;
+  }
+
+  showCompra() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.compra)}
+        onValueChange={this.setCompra}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Compra</Text></View>;
+    }
+    return null;
+  }
+
+  showVenta() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.venta)}
+        onValueChange={this.setVenta}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Venta</Text></View>;
+    }
+    return null;
+  }
+
+
+  showPedido() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.pedido)}
+        onValueChange={this.setPedido}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Pedido</Text></View>;
+    }
+    return null;
+  }
+
+  showSalidas() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.salidas)}
+        onValueChange={this.setSalidas}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Salidas</Text></View>;
+    }
+    return null;
+  }
+
+  showEntradas() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.entradas)}
+        onValueChange={this.setEntradas}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Entradas</Text></View>;
+    }
+    return null;
+  }
+
+  showInventario() {
+    if (this.state.barcode) {
+      return <View style={styles.checkboxContainer}>
+        <CheckBox
+        value={JSON.parse(this.state.inventario)}
+        onValueChange={this.setInventario}
+        style={styles.checkbox}
+      /><Text style={styles.appButtonTextTitle}>Inventario</Text></View>;
+    }
+    return null;
+  }
+
+  showExportOptions() {
+    if (this.state.barcode) {
+      return <View><Text></Text><Text style={styles.appButtonTextTitle}>Opciones de exportación</Text><Text></Text></View>;
+    }
+    return null;
+  }
+
+  showBarcodeButton(){
+    if (this.state.barcode) {
+      return <Ionicons 
+       name="barcode" 
+       onPress={this.goBarcode}
+       size={25} 
+       color="white"
+       style={styles.navBarButton}
+     />;
+    }
+    return null;
+  }
+
+  showListinButton(){
+    if (this.state.listin) {
+      return <Ionicons 
+      name="call" 
+      onPress={this.goListin}
+      size={25} 
+      color="white"
+      style={styles.navBarButton}
+    />
+    }
+    return null;
+  }
+
+  async loadOptions() {
+    await AsyncStorage.getItem("inventario").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ inventario: value })
+    })
+    await AsyncStorage.getItem("entradas").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ entradas: value})
+    })
+    await AsyncStorage.getItem("salidas").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ salidas: value})
+    })
+    await AsyncStorage.getItem("pedido").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ pedido: value})
+    })
+    await AsyncStorage.getItem("venta").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ venta: value})
+    })
+    await AsyncStorage.getItem("compra").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ compra: value})
+    })
+    await AsyncStorage.getItem("orden_trabajo").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.setState({ orden_trabajo: value})
+    })
+  }
+
+  async componentDidMount() {
+    await AsyncStorage.getItem("notifications").then((value) => {
+      if (value == null) {
+        value = true
+      }
+      this.setState({ notifications: value})
+    })
+
+    await AsyncStorage.getItem("barcode").then((value) => {
+      if (value == null) {
+        value = true
+      }
+      this.setState({ barcode: value })
+    })
+    await AsyncStorage.getItem("listin").then((value) => {
+      if (value == null) {
+        value = true
+      }
+      this.setState({ listin: value})
+    })
+    if (this.state.barcode) {
+      this.loadOptions()
+    }
+  }
+
+  async setOptionValue(key, value) {
+    var v = !JSON.parse(value)
+    await AsyncStorage.setItem(key, JSON.stringify(v));
+  }
+
+  setInventario = async() => {
+    var value = !JSON.parse(this.state.inventario)
+    await AsyncStorage.setItem('inventario', JSON.stringify(value))
+    this.setState({inventario: value})
+  }
+
+  setEntradas = async() => {
+    var value = !JSON.parse(this.state.entradas)
+    await AsyncStorage.setItem('entradas', JSON.stringify(value))
+    this.setState({entradas: value})
+  }
+
+  setSalidas = async() => {
+    var value = !JSON.parse(this.state.salidas)
+    await AsyncStorage.setItem('salidas', JSON.stringify(value))
+    this.setState({salidas: value})
+  }
+
+  setPedido = async() => {
+    var value = !JSON.parse(this.state.pedido)
+    await AsyncStorage.setItem('pedido', JSON.stringify(value))
+    this.setState({pedido: value})
+  }
+
+  setVenta = async() => {
+    var value = !JSON.parse(this.state.venta)
+    await AsyncStorage.setItem('venta', JSON.stringify(value))
+    this.setState({venta: value})
+  }
+
+  setCompra = async() => {
+    var value = !JSON.parse(this.state.compra)
+    await AsyncStorage.setItem('compra', JSON.stringify(value))
+    this.setState({compra: value})
+  }
+
+  setOrdenTrabajo = async() => {
+    var value = !JSON.parse(this.state.orden_trabajo)
+    await AsyncStorage.setItem('orden_trabajo', JSON.stringify(value))
+    this.setState({orden_trabajo: value})
+  }
+
+  setNotification = async() => {
+    var value = !JSON.parse(this.state.notifications)
+    await AsyncStorage.setItem('notifications', JSON.stringify(value))
+    this.setState({notifications: value})
+  }
+
+  render() {
+    return(
+      <View style={{flex: 1}}>
+        <View style={styles.navBar}>
+          <Text style={styles.navBarHeader}>Configuración</Text>
+        </View>
+        <View style={{flex: 1}}>
+          <Text></Text>
+          <View style={styles.checkboxContainer}>
+          <CheckBox
+          value={JSON.parse(this.state.notifications)}
+          onValueChange={this.setNotification}
+          style={styles.checkbox}
+        />
+        <Text style={styles.appButtonTextTitle}>Notificaciones</Text>
+          </View>
+        {this.showExportOptions()}
+        {this.showInventario()}
+        {this.showEntradas()}
+        {this.showSalidas()}
+        {this.showPedido()}
+        {this.showVenta()}
+        {this.showCompra()}
+        {this.showOrdenTrabajo()}
+        </View>
+        <View style={styles.navBar}>
+        <Ionicons 
+            name="log-out-outline" 
+            onPress={this.logout}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="home" 
+            onPress={this.goHome}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          {this.showListinButton()}
+          {this.showBarcodeButton()}
+          <Ionicons 
+            name="settings" 
+            onPress={this.goSettings}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+        </View>
+        </View>
+    )
+  }
+}
+
+class ExportCodesScreen extends Component {
+
+  inventario = false
+  entradas = false
+  salidas = false
+  pedido = false
+  venta = false
+  compra = false
+  orden_trabajo = false
+  sentence = ""
+
+  constructor(props) {
+    super(props);
+    this.init();
+  }
+
+  async init() {
+    const inventario = await AsyncStorage.getItem('inventario').catch(() => {
+      inventario = false;
+    });
+    this.inventario = inventario
+    const entradas = await AsyncStorage.getItem('entradas').catch(() => {
+      entradas = false;
+    });
+    this.entradas = entradas
+    const salidas = await AsyncStorage.getItem('salidas').catch(() => {
+      salidas = false;
+    });
+    this.salidas = salidas
+    const pedido = await AsyncStorage.getItem('pedido').catch(() => {
+      pedido = false;
+    });
+    this.pedido = pedido
+    const venta = await AsyncStorage.getItem('venta').catch(() => {
+      venta = false;
+    });
+    this.venta = venta
+    const compra = await AsyncStorage.getItem('compra').catch(() => {
+      compra = false;
+    });
+    this.compra = compra
+    const orden_trabajo = await AsyncStorage.getItem('orden_trabajo').catch(() => {
+      orden_trabajo = false;
+    });
+    this.orden_trabajo = orden_trabajo
+    this.sentence = " "
+    if (inventario) {
+      this.sentence += "Inventario, "
+    }
+    if (entradas) {
+      this.sentence += "Entradas, "
+    }
+    if (pedido) {
+      this.pedido += "Pedidos, "
+    }
+    if (venta) {
+      this.venta += "Ventas, "
+    }
+    if (orden_trabajo) {
+      this.sentence += " Orden de trabajo"
+    }
+  }
+
+  async sendCodes() {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Enviar códigos",
+        "¿Está seguro que desea enviar los códigos a " + this.sentence + "?",
+        [
+          {
+            text: 'Sí',
+            onPress: () => {
+              resolve(this.saveLogout(true));
+            },
+          },
+          {
+            text: 'No',
+            onPress: () => {
+              resolve(this.saveLogout(false));
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    await AsyncAlert();
+  }
+
+  auxMenu(){
+    if (this.props.navigation.state.params.barcodes.length > 0) {
+      return <Ionicons 
+       name="send" 
+       onPress={this.sendCodes}
+       size={25} 
+       color="white"
+       style={styles.navBarButton}
+     />;
+    }
+    return null;
+  }
+
+  showFlatList(){
+    if (this.props.navigation.state.params.barcodes.length > 0) {
+      return <Text style={styles.appButtonTextSave}>Todos los códigos escaneados</Text>
+    }
+    return <Text style={styles.appButtonTextSave}>No ha escaneado ningún código aún</Text>
+  }
+
+  saveLogout =  async (state) => {
+    await AsyncStorage.setItem('lastUser', JSON.stringify(false));
+    if (!state) {
+      await AsyncStorage.setItem('saveData', JSON.stringify(false));
+      this.props.navigation.navigate('Login');
+    } else {
+      await AsyncStorage.setItem('saveData', JSON.stringify(true));
+      this.props.navigation.navigate('Login');
+    }
+  }
+
+  logout = async () => {
+    const AsyncAlert = (title, msg) => new Promise((resolve) => {
+      Alert.alert(
+        "Procedo a desconectar",
+        "¿Mantengo tu identificación actual?",
+        [
+          {
+            text: 'Sí',
+            onPress: () => {
+              resolve(this.saveLogout(true));
+            },
+          },
+          {
+            text: 'No',
+            onPress: () => {
+              resolve(this.saveLogout(false));
+            },
+          },
+          {
+            text: 'Cancelar',
+            onPress: () => {
+              resolve('Cancel');
+            },
+          },
+        ],
+        { cancelable: false },
+      );
+    });
+    await AsyncAlert();
+  }
+
+  goSettings = () => {
+    this.props.navigation.navigate("Settings")
   }
 
   goHome = () => {
@@ -37,13 +482,129 @@ class ListinScreen extends Component {
     this.props.navigation.navigate("Barcode")
   }
 
+  goListin = () => {
+    this.props.navigation.navigate("Listin")
+  }
+
+   render() {
+    return(
+      <View style={{flex: 1}}>
+        <View style={styles.navBar}>
+          <Text style={styles.navBarHeader}>Exportar códigos</Text>
+        </View>
+        <View style={{flex: 1}}>
+          <Text></Text>
+          {this.showFlatList()}
+          <FlatList
+          data={ this.props.navigation.state.params.barcodes.sort((a,b) => a.time < b.time) } 
+          renderItem={({ item, index, separators }) => (
+            <TouchableOpacity
+              key={item}>
+              <View> 
+                <Text style={styles.headerAccounts}>{item.code} ({item.quantity})</Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          keyExtractor={(item) => item.code}
+          />
+        </View>
+        <View style={styles.navBar}>
+        <Ionicons 
+            name="log-out-outline" 
+            onPress={this.logout}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="home" 
+            onPress={this.goHome}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+         <Ionicons 
+            name="barcode" 
+            onPress={this.goBarcode}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          <Ionicons 
+            name="settings" 
+            onPress={this.goSettings}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
+          {this.auxMenu()}
+        </View>
+        </View>
+    )
+   }
+}
+
+
+class ListinScreen extends Component {
+
+  WEBVIEW_REF = "listin"
+  webView = {
+    canGoBack: false,
+    ref: null,
+  }
+
+  barcode = false
+
+  constructor(props) {
+    super(props);
+    this.state = { url: "https://desarrollo.dicloud.es/companies/listin.asp" }
+    this.init()
+  }
+
+  async init(){
+    const barcode = await AsyncStorage.getItem('barcode').catch(() => {
+      barcode = false;
+    });
+    this.barcode = barcode
+  }
+
+  reload = () => {
+    this.webView.ref.reload();
+  }
+
+  goSettings = () => {
+    this.props.navigation.navigate("Settings")
+  }
+
+  goHome = () => {
+    this.props.navigation.navigate("Home")
+  }
+
+  goBarcode = () => {
+    this.props.navigation.navigate("Barcode")
+  }
+
+  showBarcodeButton(){
+    if (this.barcode) {
+      return <Ionicons 
+       name="barcode" 
+       onPress={this.goBarcode}
+       size={25} 
+       color="white"
+       style={styles.navBarButton}
+     />;
+    }
+    return null;
+  }
+
+
   saveLogout =  async (state) => {
-    await AsyncStorage.setItem('lastUser', "false");
+    await AsyncStorage.setItem('lastUser', JSON.stringify(false));
     if (!state) {
-      await AsyncStorage.setItem('saveData', "false");
+      await AsyncStorage.setItem('saveData', JSON.stringify(false));
       this.props.navigation.navigate('Login');
     } else {
-      await AsyncStorage.setItem('saveData', "true");
+      await AsyncStorage.setItem('saveData', JSON.stringify(true));
       this.props.navigation.navigate('Login');
     }
   }
@@ -152,9 +713,10 @@ class ListinScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
-            <Ionicons 
-            name="barcode" 
-            onPress={this.goBarcode}
+          {this.showBarcodeButton()}
+          <Ionicons 
+            name="settings" 
+            onPress={this.goSettings}
             size={25} 
             color="white"
             style={styles.navBarButton}
@@ -199,8 +761,12 @@ class BarcodeScreen extends Component {
     })
   }
 
+  goSettings = () => {
+    this.props.navigation.navigate("Settings")
+  }
+
   sendCodes = () => {
-    this.props.navigation.navigate("SendCodes")
+    this.props.navigation.navigate("ExportCodes", {barcodes: this.state.barcodes})
   }
 
   goHome = () => {
@@ -345,12 +911,12 @@ class BarcodeScreen extends Component {
   }
 
   saveLogout =  async (state) => {
-    await AsyncStorage.setItem('lastUser', "false");
+    await AsyncStorage.setItem('lastUser', JSON.stringify(false));
     if (!state) {
-      await AsyncStorage.setItem('saveData', "false");
+      await AsyncStorage.setItem('saveData', JSON.stringify(false));
       this.props.navigation.navigate('Login');
     } else {
-      await AsyncStorage.setItem('saveData', "true");
+      await AsyncStorage.setItem('saveData', JSON.stringify(true));
       this.props.navigation.navigate('Login');
     }
   }
@@ -436,7 +1002,7 @@ class BarcodeScreen extends Component {
     if (this.state.barcodes.length > 0) {
       return <Text style={styles.appButtonTextSave}>Seleccione el código para eliminar o editar</Text>
     }
-    return null;
+    return null
   }
 
   startBarcode = () => {
@@ -531,7 +1097,6 @@ class BarcodeScreen extends Component {
           <TouchableOpacity onPress={this.startBarcode} style={styles.appButtonBarcodeContainer}>
             <Text style={styles.appButtonText}>Escanear</Text>
           </TouchableOpacity> 
-          
           <Text></Text>
           {this.deleteFlatList()}
           <Text></Text> 
@@ -549,7 +1114,7 @@ class BarcodeScreen extends Component {
             </TouchableOpacity>
           )}
           keyExtractor={(item) => item.code}
-        />
+          />
           </View>
           <View style={styles.navBar}>
           <Ionicons 
@@ -580,6 +1145,13 @@ class BarcodeScreen extends Component {
               color="white"
               style={styles.navBarButton}
             />
+            <Ionicons 
+              name="settings" 
+              onPress={this.goSettings}
+              size={25} 
+              color="white"
+              style={styles.navBarButton}
+            />
           </View>
           </View>
       )
@@ -594,6 +1166,7 @@ class HomeScreen extends Component {
   user = ""
   password = ""
   fullname = ""
+  listin = false
   barcode = false
   token = ""
   webView = {
@@ -633,8 +1206,8 @@ class HomeScreen extends Component {
     await AsyncStorage.getItem("token").then((value) => {
       this.token = value;
     })
-    await AsyncStorage.getItem("token").then((value) => {
-      this.token = value;
+    await AsyncStorage.getItem("listin").then((value) => {
+      this.listin = value;
     })
     await AsyncStorage.getItem("fullname").then((value) => {
       this.fullname = value;
@@ -696,7 +1269,7 @@ class HomeScreen extends Component {
   }
 
   showListinButton(){
-    if (this.barcode) {
+    if (this.listin) {
       return <Ionicons 
       name="call" 
       onPress={this.goListin}
@@ -748,7 +1321,7 @@ class HomeScreen extends Component {
     }
   }
 
-  async getNews() {
+  async checkNews() {
     await this.getUser()
     const requestOptions = {
       method: 'POST',
@@ -772,6 +1345,17 @@ class HomeScreen extends Component {
     }).catch(() => {});
   }
 
+  async getNews() {
+    await AsyncStorage.getItem("notifications").then((value) => {
+      if (value == null) {
+        value = true
+      }
+      if (JSON.parse(value)) {
+        this.checkNews()
+      }
+    })
+  }
+
   setWebview =  async () => {
     BackHandler.addEventListener('hardwareBackPress', this.handleBackButton);
  }
@@ -792,6 +1376,10 @@ class HomeScreen extends Component {
     this.props.navigation.navigate("Listin")
   }
 
+  goSettings = () => {
+    this.props.navigation.navigate("Settings")
+  }
+
   reload = () => {
     this.webView.ref.reload();
   }
@@ -801,12 +1389,12 @@ class HomeScreen extends Component {
   }
 
   saveLogout =  async (state) => {
-    await AsyncStorage.setItem('lastUser', "false");
+    await AsyncStorage.setItem('lastUser', JSON.stringify(false));
     if (!state) {
-      await AsyncStorage.setItem('saveData', "false");
+      await AsyncStorage.setItem('saveData', JSON.stringify(false));
       this.props.navigation.navigate('Login');
     } else {
-      await AsyncStorage.setItem('saveData', "true");
+      await AsyncStorage.setItem('saveData', JSON.stringify(true));
       this.props.navigation.navigate('Login');
     }
   }
@@ -839,7 +1427,6 @@ class HomeScreen extends Component {
         { cancelable: false },
       );
     });
-    
     await AsyncAlert();
   }
 
@@ -917,6 +1504,13 @@ class HomeScreen extends Component {
           />
           {this.showListinButton()}
           {this.showBarcodeButton()}
+          <Ionicons 
+            name="settings" 
+            onPress={this.goSettings}
+            size={25} 
+            color="white"
+            style={styles.navBarButton}
+          />
         </View>
     </View>
     )
@@ -931,9 +1525,9 @@ class LoginScreen extends Component {
 
   async componentDidMount(){
     const saveData = await AsyncStorage.getItem('saveData').catch(() => {
-       saveData = "false";
+       saveData = false;
      });
-     if (saveData == "true") {
+     if (saveData) {
         await AsyncStorage.getItem("alias").then((value) => {
           this.alias = value;
         })
@@ -996,12 +1590,13 @@ class LoginScreen extends Component {
       this.showAlert(error);
   }
 
-  async goHome(alias,user,pass,fullname,idempresa,token,barcode) {
-    await AsyncStorage.setItem('lastUser', "true");
+  async goHome(alias,user,pass,fullname,idempresa,token,barcode,listin) {
+    await AsyncStorage.setItem('lastUser', JSON.stringify(true));
     await AsyncStorage.setItem('alias', alias);
     await AsyncStorage.setItem('user', user);
     await AsyncStorage.setItem('password', pass);
     await AsyncStorage.setItem('fullname', fullname);
+    await AsyncStorage.setItem('listin', listin);
     await AsyncStorage.setItem('idempresa', idempresa + "");
     await AsyncStorage.setItem('token', token);
     await AsyncStorage.setItem('barcode', barcode);
@@ -1027,7 +1622,8 @@ class LoginScreen extends Component {
             let token = JSON.parse(JSON.stringify(responseJson.token))
             let idempresa = JSON.parse(JSON.stringify(responseJson.idempresa))
             let barcode = JSON.parse(JSON.stringify(responseJson.barcode))
-            this.goHome(alias,user,pass,fullname,idempresa,token, barcode)
+            let listin = JSON.parse(JSON.stringify(responseJson.listin))
+            this.goHome(alias,user,pass,fullname,idempresa,token, barcode, listin)
           } else {
             this.handleError(error)
           }
@@ -1069,8 +1665,8 @@ class LoginScreen extends Component {
             value={this.state.pass}
           />  
           <TouchableOpacity activeOpacity = { 0.8 } style = { styles.visibilityBtn } onPress = { this.managePasswordVisibility }>
-              <Ionicons name={ ( this.state.hidePassword ) ? "eye"  : "eye-off" } size={32} color="#98A406" /> 
-            </TouchableOpacity>   
+            <Ionicons name={ ( this.state.hidePassword ) ? "eye"  : "eye-off" } size={32} color="#98A406" /> 
+          </TouchableOpacity>   
         </View>  
         <TouchableOpacity onPress={this.login} style={styles.appButtonContainer}>
           <Text style={styles.appButtonText}>Entrar</Text>
@@ -1091,7 +1687,7 @@ class MainScreen extends Component {
 
   init = async () => {
     const lastUser = await AsyncStorage.getItem('lastUser').catch(() => {
-      lastUser = "false";
+      lastUser = false;
     });
     const alias = await AsyncStorage.getItem('alias').catch(() => {
       alias = "";
@@ -1106,7 +1702,7 @@ class MainScreen extends Component {
       token = "";
     });
     await new Promise(resolve => setTimeout(resolve, 2000));
-    if (lastUser == "true") {
+    if (lastUser != null && lastUser) {
       var url = "https://desarrollo.dicloud.es/?company="+alias+"&user="+user+"&pass="+password.toLowerCase()+"&token="+token
       this.props.navigation.navigate('Home',{url:url})
     } else {
@@ -1181,6 +1777,20 @@ const AppNavigator = createStackNavigator({
       animationEnabled: false
     }
   },
+  ExportCodes: {
+    screen: ExportCodesScreen,
+    navigationOptions: {
+      header: null,
+      animationEnabled: false
+    }
+  },
+  Settings: {
+    screen: SettingsScreen,
+    navigationOptions: {
+      header: null,
+      animationEnabled: false
+    }
+  }
 });
 
 export class Barcode {
@@ -1263,6 +1873,12 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     textTransform: "uppercase"
   },
+  appButtonTextTitle: {
+    fontSize: 18,
+    color: "#1A5276",
+    fontWeight: "bold",
+    alignSelf: "center"
+  },
   appButtonTextSave: {
     fontSize: 15,
     color: "#1A5276",
@@ -1273,6 +1889,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     textAlign:'center',
     width: 64
+  },
+  checkboxContainer: {
+    flexDirection: "row",
+    marginBottom: 20,
   },
   navBar:{
     flexDirection:'row', 

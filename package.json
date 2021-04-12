@@ -20,7 +20,7 @@
     "react-native": "~0.63.4",
     "react-native-background-fetch": "^4.0.1",
     "react-native-barcode-scanner-google": "^1.4.2",
-    "react-native-camera": "^3.43.3",
+    "react-native-camera": "^3.43.5",
     "react-native-gesture-handler": "~1.8.0",
     "react-native-push-notification": "^7.2.3",
     "react-native-reanimated": "~1.13.0",
