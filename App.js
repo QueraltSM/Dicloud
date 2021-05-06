@@ -11,13 +11,22 @@ import { FlatList } from 'react-native-gesture-handler';
 import PushNotification from 'react-native-push-notification';
 import BackgroundFetch from 'react-native-background-fetch';
 import { RNCamera } from 'react-native-camera';
+import moment from 'moment';
 
 class SettingsScreen extends Component {
 
 
   constructor(props) {
     super(props);
-    this.state = { notifications: false, barcode: false, inventario: false, entradas: false, salidas: false, pedido: false, venta: false, compra: false, orden_trabajo: false, listin: false  }
+    this.state = { file: String, notifications: false, barcode: false, inventario: false, entradas: false, salidas: false, pedido: false, venta: false, compra: false, orden_trabajo: false, listin: false  }
+  }
+
+  goBarcode = () => {
+    this.props.navigation.navigate("Barcode")
+  }
+
+  goListin = () => {
+    this.props.navigation.navigate("Listin")
   }
 
   goHome = () => {
@@ -109,9 +118,19 @@ class SettingsScreen extends Component {
     return null;
   }
 
+  saveName = async () => {
+    await AsyncStorage.setItem('filename', this.state.file)
+  }
+
   showExportOptions() {
     if (this.state.barcode) {
-      return <View><Text></Text><Text style={styles.appButtonTextTitle}>Opciones de exportación</Text><Text></Text></View>;
+      return <View><Text></Text><Text style={styles.appButtonTextTitle}>Exportación de códigos</Text><Text></Text>
+      <TextInput value={this.state.file} placeholder="Nombre del fichero de exportación" style ={{ alignSelf: 'center', textAlign: 'center', fontSize: 17 }} onChangeText={(file) => this.setState({file})}  />
+      <Text></Text>
+      <TouchableOpacity onPress={this.saveName}>
+      <Text style={styles.appButtonTextSave}>Guardar nombre</Text>
+      </TouchableOpacity> 
+      <Text></Text><Text></Text></View>;
     }
     return null;
   }
@@ -143,6 +162,12 @@ class SettingsScreen extends Component {
   }
 
   async loadOptions() {
+    await AsyncStorage.getItem("filename").then((value) => {
+      if (value == null) {
+        value = ""
+      }
+      this.setState({ file: value })
+    })
     await AsyncStorage.getItem("inventario").then((value) => {
       if (value == null) {
         value = false
@@ -210,11 +235,6 @@ class SettingsScreen extends Component {
     if (this.state.barcode) {
       this.loadOptions()
     }
-  }
-
-  async setOptionValue(key, value) {
-    var v = !JSON.parse(value)
-    await AsyncStorage.setItem(key, JSON.stringify(v));
   }
 
   setInventario = async() => {
@@ -291,13 +311,6 @@ class SettingsScreen extends Component {
         {this.showOrdenTrabajo()}
         </View>
         <View style={styles.navBar}>
-        <Ionicons 
-            name="log-out-outline" 
-            onPress={this.logout}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
           <Ionicons 
             name="home" 
             onPress={this.goHome}
@@ -307,13 +320,6 @@ class SettingsScreen extends Component {
           />
           {this.showListinButton()}
           {this.showBarcodeButton()}
-          <Ionicons 
-            name="settings" 
-            onPress={this.goSettings}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
         </View>
         </View>
     )
@@ -330,6 +336,13 @@ class ExportCodesScreen extends Component {
   compra = false
   orden_trabajo = false
   sentence = ""
+  exportOptions=[]
+  filename = ""
+  companyid = ""
+  idfichero = ""
+  userID = ""
+  cvsContent = ""
+  barcodes = []
 
   constructor(props) {
     super(props);
@@ -337,68 +350,153 @@ class ExportCodesScreen extends Component {
   }
 
   async init() {
-    const inventario = await AsyncStorage.getItem('inventario').catch(() => {
-      inventario = false;
-    });
-    this.inventario = inventario
-    const entradas = await AsyncStorage.getItem('entradas').catch(() => {
-      entradas = false;
-    });
-    this.entradas = entradas
-    const salidas = await AsyncStorage.getItem('salidas').catch(() => {
-      salidas = false;
-    });
-    this.salidas = salidas
-    const pedido = await AsyncStorage.getItem('pedido').catch(() => {
-      pedido = false;
-    });
-    this.pedido = pedido
-    const venta = await AsyncStorage.getItem('venta').catch(() => {
-      venta = false;
-    });
-    this.venta = venta
-    const compra = await AsyncStorage.getItem('compra').catch(() => {
-      compra = false;
-    });
-    this.compra = compra
-    const orden_trabajo = await AsyncStorage.getItem('orden_trabajo').catch(() => {
-      orden_trabajo = false;
-    });
-    this.orden_trabajo = orden_trabajo
+    await AsyncStorage.getItem("barcodes").then((value) => {
+      if (value == null) {
+        value = []
+      }
+      this.barcodes = value
+    })
+    await AsyncStorage.getItem("idfichero").then((value) => {
+      if (value == null) {
+        value = ""
+      }
+      this.idfichero = value
+    })
+    await AsyncStorage.getItem("userID").then((value) => {
+      if (value == null) {
+        value = ""
+      }
+      this.userID = value
+    })
+    await AsyncStorage.getItem("idempresa").then((value) => {
+      if (value == null) {
+        value = ""
+      }
+      this.companyid = value
+    })
+    await AsyncStorage.getItem("filename").then((value) => {
+      if (value == null) {
+        value = ""
+      }
+      this.filenameExport = value
+    })
+    await AsyncStorage.getItem("inventario").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.inventario = JSON.parse(value)
+    })
+    await AsyncStorage.getItem("entradas").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.entradas = JSON.parse(value)
+    })
+    await AsyncStorage.getItem("salidas").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.salidas = JSON.parse(value)
+    })
+    await AsyncStorage.getItem("pedido").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.pedido = JSON.parse(value)
+    })
+    await AsyncStorage.getItem("venta").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.venta = JSON.parse(value)
+    })
+    await AsyncStorage.getItem("compra").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.compra = JSON.parse(value)
+    })
+    await AsyncStorage.getItem("orden_trabajo").then((value) => {
+      if (value == null) {
+        value = false
+      }
+      this.orden_trabajo = JSON.parse(value)
+    })
     this.sentence = " "
-    if (inventario) {
-      this.sentence += "Inventario, "
+    if (this.inventario) {
+      this.sentence += "inventario, "
+      this.exportOptions.push("I")
     }
-    if (entradas) {
-      this.sentence += "Entradas, "
+    if (this.entradas) {
+      this.sentence += "entradas, "
+      this.exportOptions.push("E")
     }
-    if (pedido) {
-      this.pedido += "Pedidos, "
+    if (this.salidas) {
+      this.sentence += "salidas, "
+      this.exportOptions.push("S")
     }
-    if (venta) {
-      this.venta += "Ventas, "
+    if (this.pedido) {
+      this.sentence += "pedidos, "
+      this.exportOptions.push("P")
     }
-    if (orden_trabajo) {
-      this.sentence += " Orden de trabajo"
+    if (this.venta) {
+      this.sentence += "ventas, "
+      this.exportOptions.push("V")
+    }
+    if (this.compra) {
+      this.sentence += "compras, "
+      this.exportOptions.push("C")
+    }
+    if (this.orden_trabajo) {
+      this.sentence += " orden de trabajo  "
+      this.exportOptions.push("O")
     }
   }
 
-  async sendCodes() {
+  async generateCVS(){
+    var objArray = JSON.stringify(this.barcodes)
+    var array = typeof objArray != 'object' ? JSON.parse(objArray) : objArray;
+    var str = '';
+    let row = ''; 
+    for (let index in this.headerRow) { 
+        row += this.headerRow[index] + ', '; 
+    } 
+    row = row.slice(0, -1); 
+    str += row + '\r\n';
+    for (var i = 0; i < array.length; i++) {
+        var line = '';
+        for (var index in array[i]) {
+            if (line != '') line += ','
+            line += array[i][index];
+        }
+        str += line + '\r\n';
+    }
+    this.cvsContent = str;
+  }
+
+  async removeAllCodes() {
+    var array = []
+    this.setState({barcodes: array});
+    await new AsyncStorage.setItem("barcodes", JSON.stringify(array))
+    this.props.navigation.push("Barcode")
+  }
+
+  async askReset() {
     const AsyncAlert = (title, msg) => new Promise((resolve) => {
       Alert.alert(
-        "Enviar códigos",
-        "¿Está seguro que desea enviar los códigos a " + this.sentence + "?",
+        "Eliminar los códigos",
+        "¿Desea eliminar permanentemente todos los códigos escaneados?",
         [
           {
             text: 'Sí',
             onPress: () => {
-              resolve(this.saveLogout(true));
+              resolve(this.removeAllCodes());
             },
           },
           {
             text: 'No',
             onPress: () => {
-              resolve(this.saveLogout(false));
+              resolve("No");
             },
           },
         ],
@@ -406,6 +504,54 @@ class ExportCodesScreen extends Component {
       );
     });
     await AsyncAlert();
+  }
+
+  async postImportaBarra() {
+    await fetch('https://desarrollo.dicloud.es/services/importabarra.asp?'+this.filename)
+    .then(responseJson => {
+      this.askReset()
+    }).catch((err) => {console.log(err)});
+  }
+
+  postCodes() {
+    this.generateCVS()
+    var date = moment().format("YYYY-MM-DD");
+    var hour = moment().format("HH:mm");
+    this.exportOptions.forEach(i => {
+      this.filename =  "idfichero="+ this.idfichero + "&id=" + this.companyid + "&vari=" + i + "_" + this.filenameExport + ";"+date+";"+hour+";"+this.userID+"$$"+this.cvsContent.substring(0, this.cvsContent.length-2)
+      this.postImportaBarra()
+    })
+  }
+
+  sendCodes = async() => {
+    if (this.filenameExport == "") {
+      alert("No ha completado el nombre del archivo de configuración. Vaya a configuración.")
+    } else if (this.exportOptions.length > 0) {
+      const AsyncAlert = (title, msg) => new Promise((resolve) => {
+        Alert.alert(
+          "Enviar códigos",
+          "¿Está seguro que desea enviar los códigos a"+this.sentence.substring(0,this.sentence.length-2)+"?",
+          [
+            {
+              text: 'Sí',
+              onPress: () => {
+                resolve(this.postCodes());
+              },
+            },
+            {
+              text: 'No',
+              onPress: () => {
+                resolve("No");
+              },
+            },
+          ],
+          { cancelable: false },
+        );
+      });
+      await AsyncAlert();
+    } else {
+      alert("No ha seleccionado ninguna opción de exportación. Vaya a configuración.")
+    }
   }
 
   auxMenu(){
@@ -509,13 +655,6 @@ class ExportCodesScreen extends Component {
           />
         </View>
         <View style={styles.navBar}>
-        <Ionicons 
-            name="log-out-outline" 
-            onPress={this.logout}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
           <Ionicons 
             name="home" 
             onPress={this.goHome}
@@ -523,16 +662,16 @@ class ExportCodesScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
-         <Ionicons 
-            name="barcode" 
-            onPress={this.goBarcode}
+          <Ionicons 
+            name="settings" 
+            onPress={this.goSettings}
             size={25} 
             color="white"
             style={styles.navBarButton}
           />
           <Ionicons 
-            name="settings" 
-            onPress={this.goSettings}
+            name="barcode" 
+            onPress={this.goBarcode}
             size={25} 
             color="white"
             style={styles.navBarButton}
@@ -675,7 +814,7 @@ class ListinScreen extends Component {
             }
           }}
           onShouldStartLoadWithRequest={(event) => {
-            if (event.url.indexOf("agententer.asp") > -1) {
+            if ((event.url.indexOf("agententer.asp") || event.url.indexOf("disconect.asp"))  > -1) {
               this.logout()
               return false
             } else if (event.url.includes("drive:") || event.url.includes("tel:") || event.url.includes("mailto:") || event.url.includes("maps") || event.url.includes("facebook")) {
@@ -692,13 +831,6 @@ class ListinScreen extends Component {
           }}
         />
         <View style={styles.navBar}>
-        <Ionicons 
-            name="log-out-outline" 
-            onPress={this.logout}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
           <Ionicons 
             name="reload" 
             onPress={this.reload}
@@ -713,7 +845,6 @@ class ListinScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
-          {this.showBarcodeButton()}
           <Ionicons 
             name="settings" 
             onPress={this.goSettings}
@@ -721,6 +852,7 @@ class ListinScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
+          {this.showBarcodeButton()}
         </View>
     </View>
     )
@@ -820,13 +952,20 @@ class BarcodeScreen extends Component {
     this.setState({ modify: false })
   }
 
+  async checkEmptyBarcodeList() {
+    if (this.state.barcodes.length == 0) {
+      var now = moment() + ""
+      await new AsyncStorage.setItem("idfichero", now);
+    }
+    this.setBarcode()
+  }
   
   saveCode = async () => {
     this.aux_barcodes = []
     if (this.state.code == "" || this.state.quantity == "") {
       this.showAlert("Error", "Complete todos los campos requeridos")
     } else {
-      this.setBarcode()
+      this.checkEmptyBarcodeList()
     }
   }
 
@@ -895,48 +1034,6 @@ class BarcodeScreen extends Component {
             text: 'Editar',
             onPress: () => {
               resolve(this.modifyCode(item));
-            },
-          },
-          {
-            text: 'Cancelar',
-            onPress: () => {
-              resolve('Cancel');
-            },
-          },
-        ],
-        { cancelable: false },
-      );
-    });
-    await AsyncAlert();
-  }
-
-  saveLogout =  async (state) => {
-    await AsyncStorage.setItem('lastUser', JSON.stringify(false));
-    if (!state) {
-      await AsyncStorage.setItem('saveData', JSON.stringify(false));
-      this.props.navigation.navigate('Login');
-    } else {
-      await AsyncStorage.setItem('saveData', JSON.stringify(true));
-      this.props.navigation.navigate('Login');
-    }
-  }
-
-  logout = async () => {
-    const AsyncAlert = (title, msg) => new Promise((resolve) => {
-      Alert.alert(
-        "Procedo a desconectar",
-        "¿Mantengo tu identificación actual?",
-        [
-          {
-            text: 'Sí',
-            onPress: () => {
-              resolve(this.saveLogout(true));
-            },
-          },
-          {
-            text: 'No',
-            onPress: () => {
-              resolve(this.saveLogout(false));
             },
           },
           {
@@ -1117,16 +1214,16 @@ class BarcodeScreen extends Component {
           />
           </View>
           <View style={styles.navBar}>
-          <Ionicons 
-              name="log-out-outline" 
-              onPress={this.logout}
+            <Ionicons 
+              name="home" 
+              onPress={this.goHome}
               size={25} 
               color="white"
               style={styles.navBarButton}
             />
             <Ionicons 
-              name="home" 
-              onPress={this.goHome}
+              name="settings" 
+              onPress={this.goSettings}
               size={25} 
               color="white"
               style={styles.navBarButton}
@@ -1141,13 +1238,6 @@ class BarcodeScreen extends Component {
             <Ionicons 
               name="send" 
               onPress={this.sendCodes}
-              size={25} 
-              color="white"
-              style={styles.navBarButton}
-            />
-            <Ionicons 
-              name="settings" 
-              onPress={this.goSettings}
               size={25} 
               color="white"
               style={styles.navBarButton}
@@ -1464,7 +1554,7 @@ class HomeScreen extends Component {
             }
           }}
           onShouldStartLoadWithRequest={(event) => {
-            if (event.url.indexOf("agententer.asp") > -1) {
+            if ((event.url.indexOf("agententer.asp") || event.url.indexOf("disconect.asp"))  > -1) {
               this.logout()
               return false
             } else if (event.url.includes("drive:") || event.url.includes("tel:") || event.url.includes("mailto:") || event.url.includes("maps") || event.url.includes("facebook")) {
@@ -1481,13 +1571,6 @@ class HomeScreen extends Component {
           }}
         />
         <View style={styles.navBar}>
-        <Ionicons 
-            name="log-out-outline" 
-            onPress={this.logout}
-            size={25} 
-            color="white"
-            style={styles.navBarButton}
-          />
           <Ionicons 
             name="reload" 
             onPress={this.reload}
@@ -1502,8 +1585,6 @@ class HomeScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
-          {this.showListinButton()}
-          {this.showBarcodeButton()}
           <Ionicons 
             name="settings" 
             onPress={this.goSettings}
@@ -1511,6 +1592,8 @@ class HomeScreen extends Component {
             color="white"
             style={styles.navBarButton}
           />
+          {this.showListinButton()}
+          {this.showBarcodeButton()}
         </View>
     </View>
     )
@@ -1590,7 +1673,7 @@ class LoginScreen extends Component {
       this.showAlert(error);
   }
 
-  async goHome(alias,user,pass,fullname,idempresa,token,barcode,listin) {
+  async goHome(alias,user,pass,fullname,idempresa,token,barcode,listin, userID) {
     await AsyncStorage.setItem('lastUser', JSON.stringify(true));
     await AsyncStorage.setItem('alias', alias);
     await AsyncStorage.setItem('user', user);
@@ -1600,6 +1683,7 @@ class LoginScreen extends Component {
     await AsyncStorage.setItem('idempresa', idempresa + "");
     await AsyncStorage.setItem('token', token);
     await AsyncStorage.setItem('barcode', barcode);
+    await AsyncStorage.setItem('userID', userID + "");
     var url = "https://desarrollo.dicloud.es/index.asp?company="+alias+"&user="+user+"&pass="+pass.toLowerCase()+"&movil=si"
     this.props.navigation.navigate('Home',{url:url})
   }
@@ -1620,10 +1704,11 @@ class LoginScreen extends Component {
           if (error == 0) {
             let fullname = JSON.parse(JSON.stringify(responseJson.fullName))
             let token = JSON.parse(JSON.stringify(responseJson.token))
-            let idempresa = JSON.parse(JSON.stringify(responseJson.idempresa))
+            let idempresa = JSON.parse(JSON.stringify(responseJson.companyid))
             let barcode = JSON.parse(JSON.stringify(responseJson.barcode))
+            let userID = JSON.parse(JSON.stringify(responseJson.id))
             let listin = JSON.parse(JSON.stringify(responseJson.listin))
-            this.goHome(alias,user,pass,fullname,idempresa,token, barcode, listin)
+            this.goHome(alias,user,pass,fullname,idempresa,token, barcode, listin, userID)
           } else {
             this.handleError(error)
           }
